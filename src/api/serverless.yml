@@ -1,0 +1,1810 @@
+service: 
+  name: birdbanding
+
+frameworkVersion: ">=1.45.1"
+
+plugins:
+  - serverless-pseudo-parameters
+  - serverless-plugin-warmup  
+  # TODO - Put this back in when domain config is complete
+  # - serverless-domain-manager
+  - serverless-prune-plugin
+  - serverless-apigw-binary
+  - serverless-api-gateway-caching
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: ap-southeast-2 
+  role: DefaultRole
+  stackName: ${self:custom.actualStage}-birdbanding-service-api
+  apiName: ${self:custom.actualStage}-birdbanding
+  timeout: 15
+
+  # API Keys required for public endpoints
+  apiKeys:
+    - publicEndpoints:
+      - ${self:service.name}-${self:custom.actualStage}-public-api-key
+  usagePlan:
+    - publicEndpoints:
+        quota:
+          limit: 100000
+          offset: 2
+          period: MONTH
+        throttle:
+          burstLimit: 200
+          rateLimit: 100
+
+  # Resource Policy to put network protections on API Gateway
+  resourcePolicy: ${file(serverless.${self:custom.actualStage}.cfg.yml):resourcePolicy}
+
+  # Deployment Bucket
+  # Note: We use the same serverless deployment bucket for
+  # all APIs in an environment
+  deploymentBucket: 
+    name: ${file(serverless.${self:custom.actualStage}.cfg.yml):deploymentBucketName}
+
+  deploymentPrefix: ${self:custom.actualStage}-birdbanding-service-api
+
+  # Tracing
+  tracing:
+    apiGateway: true
+    lambda: 'Active'
+  
+  # Logging
+  logs:
+    restApi: true
+
+  # Currently our Lambda functions need to access private
+  # resources inside a VPC. This might change in the future
+  # but for now, we need to setup the general config for
+  # 'internal' Lambda functions. Grab the deets from the
+  # appropriate configuration file.
+  vpc:
+    securityGroupIds: ${file(serverless.${self:custom.actualStage}.cfg.yml):vpcSecurityGroupIds}
+    subnetIds: ${file(serverless.${self:custom.actualStage}.cfg.yml):vpcSubnetIds}
+
+#=====================================
+# CUSTOM PROPERTIES
+#=====================================
+
+custom:
+  actualStage: ${opt:stage, self:provider.stage}
+  region: ${opt:region, self:provider.region}
+
+  # Automatically Prune older versions of the deployment code
+  prune:
+    automatic: true
+    includeLayers: true
+    number: 1
+
+  # Caching
+  apiGatewayCaching:
+    enabled: true
+
+  # Binary Support
+  # We need to take spreadsheets in as inputs in the payload body.
+  apigwBinary:
+    types:
+      - 'application/octet-stream'  
+      - 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      - 'application/zip'
+
+#=====================================
+#=====================================
+# FUNCTIONS
+#=====================================
+#=====================================
+functions:   
+
+  # NOTE: When adding Lambda layers to your functions, the order in the array
+  # actually matters! We've split our layers into "common" and "internal". The
+  # Common layer is intended for all external, 3rd party libs, and is generated
+  # via NPM module installation. The internal layer is for our custom helpers
+  # *which may rely on third party modules*, hence we must reference the common
+  # layer first.
+
+  #-------------------------------------
+  #       Bird Banding Schema
+  #-------------------------------------
+
+  #       Characteristics
+  #-------------------------------------
+
+  # SEARCH Characteristics
+  searchCharacteristics:
+    name: ${self:custom.actualStage}-${self:service.name}-characteristics-search
+    handler: src/characteristics.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for searching characteristics"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/characteristics
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          private: true
+          request:
+            parameters:
+              querystrings:
+                name: false
+                group: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}          
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # GET Characteristics
+  getCharacteristics:
+    name: ${self:custom.actualStage}-${self:service.name}-characteristics-get
+    handler: src/characteristics.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}  
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for getting a specific characteristic by ID"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/characteristics/{characteristicId}
+          method: get
+          caching:
+            enabled: false
+          cors: true          
+          private: true
+          request:
+            parameters:
+              paths:
+                characteristicId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}      
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  #       Species
+  #-------------------------------------
+  # SEARCH Species
+  searchSpecies:
+    name: ${self:custom.actualStage}-${self:service.name}-species-search
+    handler: src/species.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for searching species"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/species
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          private: true
+          request:
+            parameters:
+              querystrings:
+                name: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # GET Species
+  getSpecies:
+    name: ${self:custom.actualStage}-${self:service.name}-species-get
+    handler: src/species.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for getting a species by id"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/species/{speciesId}
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          private: true
+          request:
+            parameters:
+              paths:
+                speciesId: true 
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  #       Species Groups
+  #-------------------------------------
+  # SEARCH Species Groups
+  searchSpeciesGroups:
+    name: ${self:custom.actualStage}-${self:service.name}-species-group-search
+    handler: src/species-groups.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for searching species groups"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/species-groups
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          private: true
+          request:
+            parameters:
+              querystrings:
+                name: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # GET Species Groups
+  getSpeciesGroups:
+    name: ${self:custom.actualStage}-${self:service.name}-species-groups-get
+    handler: src/species-groups.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for getting species groups"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/species-groups/{speciesGroupId}
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          private: true
+          request:
+            parameters:
+              paths:
+                speciesGroupId: true 
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+
+  #       Projects
+  #-------------------------------------
+  # SEARCH Projects
+  searchProjects:
+    name: ${self:custom.actualStage}-${self:service.name}-projects-search
+    handler: src/projects.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for searching projects"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/projects
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              querystrings:
+                name: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # GET Project
+  getProjects:
+    name: ${self:custom.actualStage}-${self:service.name}-projects-get
+    handler: src/projects.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for getting a specific project by id"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/projects/{projectId}
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                projectId: true 
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # POST Project
+  postProjects:
+    name: ${self:custom.actualStage}-${self:service.name}-projects-post
+    handler: src/projects.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for creating a new project"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/projects
+          method: post
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):projectSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):projectSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+
+  # Put Project
+  putProjects:
+    name: ${self:custom.actualStage}-${self:service.name}-projects-put
+    handler: src/projects.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for updating project"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/projects/{projectId}/
+          method: put
+          caching:
+            enabled: false
+          request:
+          parameters:
+            paths:
+              projectId: true
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer 
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):projectSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):projectSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+
+
+
+  #       Birds
+  #-------------------------------------
+  # SEARCH Birds
+  searchBirds:
+    name: ${self:custom.actualStage}-${self:service.name}-birds-search
+    handler: src/birds.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for searching birds"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/birds
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              querystrings:
+                friendlyName: false
+                markConfig: false
+                bandId: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # GET Birds
+  getBirds:
+    name: ${self:custom.actualStage}-${self:service.name}-birds-get
+    handler: src/birds.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for getting a specific bird by id"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15
+    events:
+      - http:
+          path: ${self:service.name}/birds/{birdId}
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                birdId: true 
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # PUT BIRD
+  putBird:
+    name: ${self:custom.actualStage}-${self:service.name}-birds-put
+    handler: src/bird-update.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for updating a bird's species or friendly name"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 30    
+    events:
+      - http:
+          path: ${self:service.name}/birds/{birdId}
+          method: put
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                birdId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      APPLICATION_DOMAIN: ${file(serverless.${self:custom.actualStage}.cfg.yml):applicationDomain}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):birdUpdateSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):birdUpdateSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+
+
+  #       Banders
+  #-------------------------------------
+
+  #-------------------------------------------------
+  #       Cognito Post-authentication Trigger
+  #-------------------------------------------------
+  postAuthenticationTrigger:
+    name: ${self:custom.actualStage}-${self:service.name}-banders-postAuthentication
+    handler: src/banders.postAuthentication
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for carrying out post authentication cognito signup actions"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 256
+    timeout: 15
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+
+  # POST Banders
+  # ADMIN ONLY AT PRESENT
+  postBanders:
+    name: ${self:custom.actualStage}-${self:service.name}-banders-post
+    handler: src/banders.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for admin-creating a bander (in cognito and aurora)"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 30    
+    events:
+      - http:
+          path: ${self:service.name}/banders
+          method: post
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              querystrings:
+                resendInvite: false
+                validateUsername: false
+                validateEmail: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+
+  # DELETE Banders
+  # ADMIN ONLY AT PRESENT
+  deleteBanders:
+    name: ${self:custom.actualStage}-${self:service.name}-banders-delete
+    handler: src/banders.delete
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for admin-deleting a bander (in cognito and aurora)"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 30
+    events:
+      - http:
+          path: ${self:service.name}/banders/{banderId}
+          method: delete
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                banderId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+
+
+  # PUT Banders
+  # ADMIN ONLY AT PRESENT
+  putBanders:
+    name: ${self:custom.actualStage}-${self:service.name}-banders-put
+    handler: src/banders.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for updating a specific bander by ID (in cognito and aurora)"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/banders/{banderId}
+          method: put
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                banderId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+
+  # SEARCH Banders
+  searchBanders:
+    name: ${self:custom.actualStage}-${self:service.name}-banders-search
+    handler: src/banders.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for searching banders"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 1280
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/banders
+          method: get
+          caching:
+            enabled: true
+            cacheKeyParameters:
+              - name: request.querystring.paginationToken
+              - name: request.querystring.limit
+              - name: request.querystring.format
+            ttlInSeconds: 300
+            perKeyInvalidation:
+              requireAuthorization: false
+          # Custom CORs config to allow cache control header explicitly
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - Cache-Control
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            querystrings:
+              paginationToken: false
+              limit: false
+              format: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+      USER_ASSETS_BUCKET: ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/name}
+      ADMIN_BANDER_LIST_DOWNLOAD_PATH: ${file(serverless.${self:custom.actualStage}.cfg.yml):adminBanderListDownloadPath}
+
+  # GET Banders
+  getBanders:
+    name: ${self:custom.actualStage}-${self:service.name}-banders-get
+    handler: src/banders.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for retrieving a specific bander by ID"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/banders/{banderId}
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                banderId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+
+  
+  #     Events
+  #-------------------------------------
+  # POST Events
+  postEvents:
+    name: ${self:custom.actualStage}-${self:service.name}-events-post
+    handler: src/events.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for creating new events"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 1024
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/projects/{projectId}/events
+          method: post
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                projectId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      APPLICATION_DOMAIN: ${file(serverless.${self:custom.actualStage}.cfg.yml):applicationDomain}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):processedEventSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):processedEventSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+
+
+  # SEARCH Events
+  searchEvents:
+    name: ${self:custom.actualStage}-${self:service.name}-events-search
+    handler: src/events.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for searching events"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 2496
+    timeout: 30    
+    events:
+      - http:
+          path: ${self:service.name}/events
+          method: get
+          caching:
+            enabled: true
+            cacheKeyParameters:
+              - name: request.querystring.paginationToken
+              - name: request.querystring.limit
+              - name: request.querystring.projectId
+              - name: request.querystring.projectName
+              - name: request.querystring.prefixNumber
+              - name: request.querystring.shortNumber
+              - name: request.querystring.speciesCode
+              - name: request.querystring.speciesId
+              - name: request.querystring.speciesGroup
+              - name: request.querystring.reporterId
+              - name: request.querystring.regionName
+              - name: request.querystring.bandingScheme
+              - name: request.querystring.eventDate
+              - name: request.querystring.eventDateGte
+              - name: request.querystring.eventDateLte
+              - name: request.querystring.nznbbsCode
+              - name: request.querystring.birdId
+              - name: request.querystring.birdRecord
+              - name: request.querystring.sortBy
+              - name: request.querystring.order
+              - name: request.querystring.version
+              - name: request.header.Authorization
+            ttlInSeconds: 30
+            perKeyInvalidation:
+              requireAuthorization: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              querystrings:
+                paginationToken: false
+                limit: false
+                projectId: false
+                projectName: false
+                prefixNumber: false
+                shortNumber: false
+                speciesCode: false
+                speciesId: false
+                speciesGroup: false
+                reporterId: false
+                regionName: false
+                bandingScheme: false
+                eventDate: false
+                eventDateGte: false
+                eventDateLte: false
+                nznbbsCode: false
+                birdId: false
+                birdRecord: false
+                version: false
+                sortBy: false
+                order: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+
+  # GET Events
+  getEvents:
+    name: ${self:custom.actualStage}-${self:service.name}-events-get
+    handler: src/events.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for retrieving a specific event by ID"
+    warmup: true
+    role: ${self:resources.Outputs.ReadOnlyExecutionRoleArn.Value}
+    memorySize: 1280
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/events/{eventId}
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                eventId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # PUT Events
+  putEvents:
+    name: ${self:custom.actualStage}-${self:service.name}-events-put
+    handler: src/events.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for creating/updating events"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/events/{eventId}
+          method: put
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                eventId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      APPLICATION_DOMAIN: ${file(serverless.${self:custom.actualStage}.cfg.yml):applicationDomain}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):updatedEventSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):updatedEventSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}      
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+
+      
+  # DELETE Events
+  deleteEvents:
+    name: ${self:custom.actualStage}-${self:service.name}-events-delete
+    handler: src/events.delete
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for creating/updating events"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/events/{eventId}
+          method: delete
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                eventId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      CUSTOM_ERROR_LIST_TABLE: !Ref CustomErrorTable
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}      
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+
+  # PUT Project Events
+  putProjectEvents:
+    name: ${self:custom.actualStage}-${self:service.name}-project-events-put
+    handler: src/projects-events.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for updating project events"
+    warmup: true
+    role: ${self:resources.Outputs.ReadWriteExecutionRoleArn.Value}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/projects/{projectId}/events
+          method: put
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          request:
+            parameters:
+              paths:
+                projectId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      APPLICATION_DOMAIN: ${file(serverless.${self:custom.actualStage}.cfg.yml):applicationDomain}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):projectEventsUpdateSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):projectEventsUpdateSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}      
+
+#=====================================
+#=====================================
+# RESOURCES
+#=====================================
+#=====================================
+resources:
+  
+  # Custom Stack Description  
+  Description: 'Birdbanding - Main Serverless API Stack'
+
+  Resources:
+
+  # Some duplication/separation of API Gateway resources required for use across stacks
+    ApiGatewayRestApi:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Name: ${self:custom.actualStage}-${self:service.name}
+
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        AuthorizerResultTtlInSeconds: 300
+        IdentitySource: method.request.header.Authorization
+        Name: ${self:custom.actualStage}-${self:service.name}-cognito-authorizer
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        Type: COGNITO_USER_POOLS
+        ProviderARNs:
+          - ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/arn} 
+
+    GatewayResponseDefault4XX:
+      Type: 'AWS::ApiGateway::GatewayResponse'
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+
+    GatewayResponseDefault5XX:
+      Type: 'AWS::ApiGateway::GatewayResponse'
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+
+    GatewayResponse401:
+        Type: 'AWS::ApiGateway::GatewayResponse'
+        Properties:
+          ResponseParameters:
+            gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          ResponseType: EXPIRED_TOKEN
+          RestApiId: 
+            Ref: ApiGatewayRestApi
+          StatusCode: '401'
+
+    ServiceRestApiId:
+      Type: AWS::SSM::Parameter
+      Properties: 
+        Description: !Sub "Rest API ID for the ${self:service.name} service in the ${self:custom.actualStage} environment"
+        Name: '/${self:custom.actualStage}/${self:service.name}/apigw/id'
+        Type: 'String'
+        Value: !Ref ApiGatewayRestApi
+        # Tag Config
+        Tags:        
+          Service: ${self:service.name}
+          Environment: ${self:custom.actualStage}
+
+    ServiceRestApiRootResourceId:
+      Type: AWS::SSM::Parameter
+      Properties: 
+        Description: !Sub "Rest API Root Resource ID for the ${self:service.name} service in the ${self:custom.actualStage} environment"
+        Name: '/${self:custom.actualStage}/${self:service.name}/apigw/rootresourceid'
+        Type: 'String'
+        Value: !GetAtt ApiGatewayRestApi.RootResourceId
+        # Tag Config
+        Tags:        
+          Service: ${self:service.name}
+          Environment: ${self:custom.actualStage}
+
+    LambdaExecutionRoleArn:
+      Type: AWS::SSM::Parameter
+      Properties: 
+        Description: !Sub "Lambda Execution role ARN for the ${self:service.name} service in the ${self:custom.actualStage} environment"
+        Name: '/${self:custom.actualStage}/${self:service.name}/iam/lambdaexecutionarn'
+        Type: 'String'
+        Value: !GetAtt DefaultRole.Arn
+        # Tag Config
+        Tags:        
+          Service: ${self:service.name}
+          Environment: ${self:custom.actualStage}
+
+    ReadOnlyRoleArn:
+      Type: AWS::SSM::Parameter
+      Properties: 
+        Description: !Sub "Read only role ARN for the ${self:service.name} service in the ${self:custom.actualStage} environment"
+        Name: '/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn'
+        Type: 'String'
+        Value: !GetAtt ReadOnlyExecutionRole.Arn
+        # Tag Config
+        Tags:        
+          Service: ${self:service.name}
+          Environment: ${self:custom.actualStage}
+
+    ReadWriteRoleArn:
+      Type: AWS::SSM::Parameter
+      Properties: 
+        Description: !Sub "Read write role ARN for the ${self:service.name} service in the ${self:custom.actualStage} environment"
+        Name: '/${self:custom.actualStage}/${self:service.name}/iam/readwritearn'
+        Type: 'String'
+        Value: !GetAtt ReadWriteExecutionRole.Arn
+        # Tag Config
+        Tags:        
+          Service: ${self:service.name}
+          Environment: ${self:custom.actualStage}
+
+    ApiGWAuthorizer:
+      Type: AWS::SSM::Parameter
+      Properties: 
+        Description: !Sub "Shared API GW Authoriser for the ${self:service.name} service in the ${self:custom.actualStage} environment"
+        Name: '/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer'
+        Type: 'String'
+        Value: !Ref ApiGatewayAuthorizer
+        # Tag Config
+        Tags:        
+          Service: ${self:service.name}
+          Environment: ${self:custom.actualStage}
+        
+    #=====================================
+    #              ROLES
+    #=====================================
+
+    # Read-Only Execution Role
+    ReadOnlyExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: "/"
+        RoleName: 
+          'Fn::Sub': '${self:custom.actualStage}-${self:service.name}-lambda-exec-read-only'
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole              
+        Policies:
+          - PolicyName: LambdaExecReadOnlyPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Sid: ManageLogs
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - logs:*
+                  Resource: "*"  
+
+                - Sid: DDBReadOnly
+                  # --------------------------            
+                  Effect: Allow
+                  Action:
+                    - dynamodb:Get*
+                    - dynamodb:Describe*
+                    - dynamodb:List*                                        
+                    - dynamodb:Scan
+                    - dynamodb:Query
+                  Resource: '*'
+
+                - Sid: ReadOnlyCognito
+                  # --------------------------            
+                  Effect: Allow
+                  Action:
+                    - cognito-idp:List*
+                  Resource: 
+                    - ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/arn}
+
+                - Sid: KMSBasic
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - kms:Decrypt
+                    - kms:Encrypt
+                    - kms:PutKeyPolicy
+                    - kms:GenerateDataKey
+                  Resource: "*" 
+
+                - Sid: S3GetPutTag
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - s3:PutObject
+                    - s3:GetObject
+                    - s3:GetObjectVersionTagging
+                    - s3:GetObjectTagging
+                    - s3:PutObjectTagging
+                    - s3:PutObjectAcl
+                  Resource: "*"  
+
+                - Sid: XRayTracing
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - xray:*
+                  Resource: "*"  
+
+                - Sid: AuroraReadOnlyAccess
+                  # --------------------------                                 
+                  Effect: Allow
+                  Action:
+                    - rds-db:connect
+                  Resource:
+                    - 'Fn::Join':
+                      - ':'
+                      - - 'arn:aws:rds-db'
+                        - Ref: 'AWS::Region'
+                        - Ref: 'AWS::AccountId'
+                        - 'dbuser:*/birdbanding_readonly'
+
+                - Sid: DynamoDBCustomErrorReadOnlyAccess 
+                  Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                  Resource:
+                    - !GetAtt CustomErrorTable.Arn
+
+    # Read-Write Execution Role
+    ReadWriteExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: "/"
+        RoleName: 
+          'Fn::Sub': '${self:custom.actualStage}-${self:service.name}-lambda-exec-read-write'
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole              
+        Policies:
+          - PolicyName: LambdaExecReadOnlyPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Sid: ManageLogs
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - logs:*
+                  Resource: "*"  
+
+                - Sid: DDBReadWrite
+                  # --------------------------            
+                  Effect: Allow
+                  Action:
+                    - dynamodb:Get*
+                    - dynamodb:Describe*
+                    - dynamodb:List*                                        
+                    - dynamodb:Scan
+                    - dynamodb:Query
+                    - dynamodb:PutItem
+                  Resource: "*"
+
+                - Sid: ReadWriteCognito
+                  # --------------------------            
+                  Effect: Allow
+                  Action:
+                    - cognito-idp:List*
+                    - cognito-idp:AdminUpdate*
+                    - cognito-idp:AdminGetUser
+                    - cognito-idp:AdminCreateUser
+                    - cognito-idp:AdminDeleteUser
+                    - cognito-idp:AdminAddUserToGroup
+                  Resource: 
+                    - ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/arn}
+
+                - Sid: KMSBasic
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - kms:Decrypt
+                    - kms:Encrypt
+                    - kms:PutKeyPolicy
+                    - kms:GenerateDataKey
+                  Resource: "*" 
+
+                - Sid: S3GetPutTag
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - s3:HeadObject
+                    - s3:PutObject
+                    - s3:GetObject
+                    - s3:GetObjectVersionTagging
+                    - s3:GetObjectTagging
+                    - s3:PutObjectTagging
+                    - s3:PutObjectAcl
+                  Resource: "*"  
+
+                - Sid: S3DeleteUserAssetsObjects
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - s3:DeleteObject
+                  Resource: 
+                    - ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/arn}/public/*
+                    - ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/arn}/event-spreadsheet/*
+
+                - Sid: ListBucket
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - s3:ListBucket
+                  Resource: 
+                    - ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/arn}
+
+                - Sid: XRayTracing
+                  # --------------------------
+                  Effect: Allow
+                  Action:
+                    - xray:*
+                  Resource: "*"  
+
+                - Sid: AuroraReadWriteAccess
+                  # --------------------------                                 
+                  Effect: Allow
+                  Action:
+                    - rds-db:connect
+                  Resource:
+                    - 'Fn::Join':
+                      - ':'
+                      - - 'arn:aws:rds-db'
+                        - Ref: 'AWS::Region'
+                        - Ref: 'AWS::AccountId'
+                        - 'dbuser:*/birdbanding_readwrite'
+
+                - Sid: DynamoDBCustomErrorReadOnlyAccess 
+                  Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                  Resource:
+                    - !GetAtt CustomErrorTable.Arn
+                - Sid: LambdaSQSSendReceiveMessage
+                  Effect: Allow
+                  Action:
+                    - 'sqs:SendMessage'
+                    - 'sqs:GetQueueUrl'
+                    - 'sqs:ReceiveMessage'
+                    - 'sqs:DeleteMessage'
+                    - 'sqs:GetQueueAttributes'
+                    - 'sqs:ListQueues'
+                  Resource: '*'
+                - Sid: LambdaSESSendEmail
+                  Effect: Allow
+                  Action:
+                    - 'ses:SendEmail'
+                    - 'ses:SendRawEmail'
+                  Resource: '*'
+                  Condition:
+                    'ForAllValues:StringLike':
+                      'ses:Recipients':
+                        - '*${file(serverless.${self:custom.actualStage}.cfg.yml):senderEmailAddress}'
+                    'StringEquals':
+                      'ses:FromAddress': ${file(serverless.${self:custom.actualStage}.cfg.yml):senderEmailAddress}
+
+    # Default Role
+    DefaultRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName:
+          'Fn::Sub': '${self:custom.actualStage}-${self:service.name}-lambda-exec-default'
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: WarmUpLambdaPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+               # Warmer lambda to send logs to CloudWatch
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                  Resource: 
+                    - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/${self:service}-${opt:stage, self:provider.stage}/*:*
+                - Effect: Allow
+                  Action:
+                    - logs:PutLogEvents
+                  Resource: 
+                    - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/${self:service}-${opt:stage, self:provider.stage}/*:*:*
+                # Warmer lambda to invoke the functions to be warmed
+                - Effect: 'Allow'
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource:
+                    - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-*
+                    - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${opt:stage, self:provider.stage}-${self:service}-*
+                # Warmer lambda to manage ENIS (only needed if deploying to VPC, https://docs.aws.amazon.com/lambda/latest/dg/vpc.html)
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateNetworkInterface
+                    - ec2:DescribeNetworkInterfaces
+                    - ec2:DetachNetworkInterface
+                    - ec2:DeleteNetworkInterface
+                  Resource: "*"
+                  
+    PostAuthenticationUserPoolLambdaInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn: PostAuthenticationTriggerLambdaFunction
+      Properties:
+        Action: lambda:invokeFunction
+        Principal: cognito-idp.amazonaws.com
+        FunctionName: ${self:custom.actualStage}-${self:service.name}-banders-postAuthentication
+        SourceArn: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/arn}
+
+    # Custom Error Table
+    CustomErrorTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: 'Delete' 
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: 'id'
+            AttributeType: 'S'
+          - AttributeName: 'version'
+            AttributeType: 'N'
+        KeySchema:
+          - AttributeName: 'id'
+            KeyType: 'HASH'
+          - AttributeName: 'version'
+            KeyType: 'RANGE'
+        BillingMode: 'PAY_PER_REQUEST'
+        StreamSpecification:
+          StreamViewType: 'NEW_IMAGE'
+        # Tag Config
+        Tags:              
+          - Key: Environment
+            Value: ${self:custom.actualStage}
+
+    CustomErrorTableParameter:
+      Type: AWS::SSM::Parameter
+      Properties: 
+        Description: !Sub "Shared custom error table for the ${self:service.name} service in the ${self:custom.actualStage} environment"
+        Name: '/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors'
+        Type: 'String'
+        Value: !Ref CustomErrorTable
+        # Tag Config
+        Tags:        
+          Service: ${self:service.name}
+          Environment: ${self:custom.actualStage}
+
+  #-------------------------------------
+  # Outputs
+  #-------------------------------------
+  Outputs:
+
+    # Roles
+
+    ReadOnlyExecutionRoleArn:
+      Description: 'The ARN of the Lambda Read-Only execution Role'
+      Value: 
+        'Fn::GetAtt':
+          - ReadOnlyExecutionRole
+          - Arn
+
+    ReadWriteExecutionRoleArn:
+      Description: 'The ARN of the Lambda Read-Write execution Role'
+      Value: 
+        'Fn::GetAtt':
+          - ReadWriteExecutionRole
+          - Arn
+
+    ApiGatewayAuthorizer:
+      Value:
+        Ref: ApiGatewayAuthorizer
+      Export:
+        Name: ${self:custom.actualStage}-${self:service.name}-api-gateway-authorizer

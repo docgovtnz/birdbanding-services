@@ -1,0 +1,1359 @@
+service: 
+  name: birdbanding
+
+frameworkVersion: ">=1.45.1"
+
+plugins:
+  - serverless-pseudo-parameters
+  - serverless-plugin-warmup  
+  - serverless-api-gateway-caching
+  # TODO - Put this back in when domain config is complete
+  # - serverless-domain-manager
+  - serverless-prune-plugin
+  - serverless-apigw-binary
+
+provider:
+  apiGateway:
+    restApiId:
+      ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/id}  
+    restApiRootResourceId:
+      ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/rootresourceid}  
+    restApiResources:
+      '/birdbanding': ${file(serverless.${self:custom.actualStage}.cfg.yml):birdbandingResourcePathId}
+      '/birdbanding/banders/{banderId}':  ${file(serverless.${self:custom.actualStage}.cfg.yml):birdbandingBandersResourcePathId}
+      '/birdbanding/projects/{projectId}':  ${file(serverless.${self:custom.actualStage}.cfg.yml):birdbandingProjectsDetailResourcePathId}
+      '/birdbanding/projects/{projectId}/events': ${file(serverless.${self:custom.actualStage}.cfg.yml):birdbandingProjectEventsDetailResourcePathId}
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: ap-southeast-2 
+  stackName: ${self:custom.actualStage}-birdbanding-service-api-2
+  apiName: ${self:custom.actualStage}-birdbanding
+  role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/lambdaexecutionarn}
+  timeout: 15
+
+  # Deployment Bucket
+  # Note: We use the same serverless deployment bucket for
+  # all APIs in an environment
+  deploymentBucket: 
+    name: ${file(serverless.${self:custom.actualStage}.cfg.yml):deploymentBucketName}
+
+  deploymentPrefix: ${self:custom.actualStage}-birdbanding-service-api-2
+
+  # Tracing
+  tracing:
+    apiGateway: true
+    lambda: 'Active'
+  
+  # # Logging
+  # logs:
+  #   restApi: true
+
+  # Currently our Lambda functions need to access private
+  # resources inside a VPC. This might change in the future
+  # but for now, we need to setup the general config for
+  # 'internal' Lambda functions. Grab the deets from the
+  # appropriate configuration file.
+  vpc:
+    securityGroupIds: ${file(serverless.${self:custom.actualStage}.cfg.yml):vpcSecurityGroupIds}
+    subnetIds: ${file(serverless.${self:custom.actualStage}.cfg.yml):vpcSubnetIds}
+
+#=====================================
+# CUSTOM PROPERTIES
+#=====================================
+
+custom:
+  actualStage: ${opt:stage, self:provider.stage}
+  region: ${opt:region, self:provider.region}
+
+  # Automatically Prune older versions of the deployment code
+  prune:
+    automatic: true
+    includeLayers: true
+    number: 2
+
+  # Binary Support
+  # We need to take spreadsheets in as inputs in the payload body.
+  apigwBinary:
+    types:
+      - 'application/octet-stream'  
+      - 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      - 'application/zip'
+
+  # Caching
+  apiGatewayCaching:
+    enabled: true
+    apiGatewayIsShared: true
+
+  warmup:
+    name: ${self:service.name}-${self:custom.actualStage}-warmup-plugin-2
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/lambdaexecutionarn}     
+
+#=====================================
+#=====================================
+# FUNCTIONS
+#=====================================
+#=====================================
+functions:   
+
+  # NOTE: When adding Lambda layers to your functions, the order in the array
+  # actually matters! We've split our layers into "common" and "internal". The
+  # Common layer is intended for all external, 3rd party libs, and is generated
+  # via NPM module installation. The internal layer is for our custom helpers
+  # *which may rely on third party modules*, hence we must reference the common
+  # layer first.
+
+  #-------------------------------------
+  #       Bird Banding Service 2
+  #-------------------------------------
+
+  #     Client Logging
+  #-------------------------------------
+  # POST Logs
+  postLogs:
+    name: ${self:custom.actualStage}-${self:service.name}-logs-post
+    handler: src/client-logs.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for capturing client error logs"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/logs
+          method: post
+          caching:
+           enabled: false
+          cors: true
+          private: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):loggingSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):loggingSchemaVersion}
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}      
+
+  refreshMaterializedViews:
+    name: ${self:custom.actualStage}-${self:service.name}-refresh-materialized-views
+    handler: src/refresh-views.handler
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for capturing client error logs"
+    warmup: false
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 900
+    events:
+      - schedule: 
+          rate: cron(00 00/2 * * ? *)
+          input:
+            materializedViewFunctionName: rw_refresh_project_event_counts_matview
+      - schedule: 
+          rate: cron(02/30 * * * ? *)
+          input:
+            materializedViewFunctionName: rw_refresh_bander_birds_matview
+      - schedule: 
+          rate: cron(15/30 * * * ? *)
+          input:
+            materializedViewFunctionName: rw_refresh_advanced_search_events_matview
+      - schedule: 
+          rate: cron(0-59/20 * * * ? *)
+          input:
+            materializedViewFunctionName: rw_refresh_mark_pagination_sort_band_number_matview
+      - schedule: 
+          rate: cron(10-59/20 * * * ? *)
+          input:
+            materializedViewFunctionName: rw_refresh_mark_latest_matview
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):loggingSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):loggingSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}      
+
+  deleteBanderCertifications:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-certifications-delete
+    handler: src/bander-certifications.delete
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Delete certification by bander certifications id"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/bander-certifications/{banderCertificationsId}
+          method: delete
+          caching:
+           enabled: false
+           ttlInSeconds: 0
+           perKeyInvalidation:
+             requireAuthorization: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                banderCertificationsId: true 
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  postBanderCertifications:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-certifications-post
+    handler: src/bander-certifications.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Post bander certification"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/bander-certifications
+          method: post
+          caching:
+           enabled: false
+           ttlInSeconds: 0
+           perKeyInvalidation:
+             requireAuthorization: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderCertificationsPayloadSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderCertificationsPayloadSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+
+  putBanderCertifications:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-certifications-put
+    handler: src/bander-certifications.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Put bander certification"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/bander-certifications/{banderCertificationsId}
+          method: put
+          caching:
+           enabled: false
+           ttlInSeconds: 0
+           perKeyInvalidation:
+             requireAuthorization: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                banderCertificationsId: true 
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderCertificationsPayloadSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderCertificationsPayloadSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+
+
+  searchBanderCertifications:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-certifications-search
+    handler: src/bander-certifications.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Search for bander certifications"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 1280
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/bander-certifications
+          method: get
+          caching:
+           enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              querystrings:
+                paginationToken: false
+                banderCertificationsId: false
+                endorsement: false
+                competencyLevel: false
+                banderId: false
+                beforeDate: false
+                afterDate: false
+                certType: false
+                certificationCommentContains: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+  
+  getBanderCertifications:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-certifications-get
+    handler: src/bander-certifications.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Get bander certifications by id"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 1280
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/banders/{banderId}/bander-certifications
+          method: get
+          caching:
+           enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                banderId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+
+  postBanderDownloads:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-eventdownloads-post
+    handler: src/bander-eventdownloads.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Post to request a bander event download"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 1280
+    timeout: 30
+    events:
+      - http:
+          path: ${self:service.name}/banders/{banderId}/event-downloads
+          method: post
+          caching:
+           enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                banderId: true
+              querystrings:
+                paginationToken: false
+                limit: false
+                projectId: false
+                projectName: false
+                prefixNumber: false
+                shortNumber: false
+                speciesCode: false
+                speciesId: false
+                speciesGroup: false
+                reporterId: false
+                regionName: false
+                bandingScheme: false
+                eventDate: false
+                eventDateGte: false
+                eventDateLte: false
+                nznbbsCode: false
+                birdId: false
+                birdRecord: false
+                sortBy: false
+                order: false
+                exportMode: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      USER_ASSETS_BUCKET: ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/name}
+
+
+  putBanderDownloads:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-eventdownloads-put
+    handler: src/bander-eventdownloads.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Put to update a bander event download status"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 1280
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/banders/{banderId}/event-downloads/{banderDownloadId}
+          method: put
+          caching:
+           enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                banderId: true
+                banderDownloadId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      USER_ASSETS_BUCKET: ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/name}
+      EXPORT_SQS_URL: !Ref DownloadInitiationQueue
+
+
+  searchBanderDownloads:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-eventdownloads-get
+    handler: src/bander-eventdownloads.getDownloads
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "List a bander's event downloads"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 1280
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/banders/{banderId}/event-downloads
+          method: get
+          caching:
+           enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                banderId: true
+              querystrings:
+                status: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      USER_ASSETS_BUCKET: ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/name}
+
+
+  banderDownloadTriggerFunction:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-eventdownloads-generate
+    handler: src/bander-eventdownloads.generateDownload
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for carrying out post authentication cognito signup actions"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 1280
+    timeout: 900
+    events:
+      - sqs:
+          arn: !GetAtt DownloadInitiationQueue.Arn
+          batchSize: 1
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      USER_ASSETS_BUCKET: ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/name}
+
+#     Retrieve Enums for specific page
+#-------------------------------------------------
+# Get Enums
+  getEnum:
+    name: ${self:custom.actualStage}-${self:service.name}-enums-get
+    handler: src/enums.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Retrieve enums for specific page"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/enums/{enumId}
+          method: get
+          caching:
+           enabled: false
+          cors: true
+          private: true
+          request:
+            parameters:
+              paths:
+                enumId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  postPublicEvents:
+    name: ${self:custom.actualStage}-${self:service.name}-public-events-post
+    handler: src/public-events.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Post to update a bander event download status"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/public-events
+          method: post
+          caching:
+           enabled: false
+          cors: true
+          private: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):publicEventSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):publicEventSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+      USER_ASSETS_BUCKET: ${ssm:/${self:custom.actualStage}/${self:service.name}/user-assets/bucket/name}
+      ADMIN_EMAIL_ADDRESS: ${file(serverless.${self:custom.actualStage}.cfg.yml):senderEmailAddress}
+
+
+  getJSONSchema:
+    name: ${self:custom.actualStage}-${self:service.name}-json-schema-get
+    handler: src/json-schema.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Get JSON schemas. Hitting schemas/ 
+      returns all the latest versions of schemas. 
+      schemas?schemaList=person=2,birds will return v2 of person schema and latest birds schema"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 1280
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/schema
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              queryStrings:
+                schemalist: false
+    environment:
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group      
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):banderDownloadSchemaVersion}
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+
+
+  #======================================
+  # PROJECT MEMBERS
+  #=====================================
+  #PATCH Projects Member List - create new team 
+  patchProjectsMemberList:
+    name: ${self:custom.actualStage}-${self:service.name}-projects-membership-patch
+    handler: src/projects-members.patch
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for updating a project to include a list of new project team members"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/projects/{projectId}/banders
+          method: patch
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):projectMemberListSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):projectMemberListSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'
+    
+    #       Mark
+  #-------------------------------------
+  # SEARCH Marks
+  searchMarks:
+    name: ${self:custom.actualStage}-${self:service.name}-marks-search
+    handler: src/marks.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for searching marks"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 256
+    timeout: 30
+    events:
+      - http:
+          path: ${self:service.name}/marks
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              querystrings:
+                paginationToken: false
+                limit: false
+                format: false
+                markState: false
+                banderId: false
+                shortNumberTo: false
+                shortNumberFrom: false
+                prefixNumber: false
+                shortNumber: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+
+  # GET Marks
+  getMarks:
+    name: ${self:custom.actualStage}-${self:service.name}-marks-get
+    handler: src/marks.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for retrieving a specific mark by ID"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/marks/{markId}
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                markId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+
+  #       Mark Transfer Events
+  #-------------------------------------
+  # SEARCH Mark Transfer Events
+  searchEventTransfers:
+    name: ${self:custom.actualStage}-${self:service.name}-event-transfers-search
+    handler: src/event-transfer.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for searching mark event transfers"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/event-transfers
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              querystrings:
+                paginationToken: false
+                limit: false
+                banderId: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+
+  # GET Mark Transfer Event by ID
+  getEventTransfer:
+    name: ${self:custom.actualStage}-${self:service.name}-event-transfers-get
+    handler: src/event-transfer.get
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Lambda function for getting mark event transfers"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 256
+    timeout: 15    
+    events:
+      - http:
+          path: ${self:service.name}/event-transfers/{eventTransferId}
+          method: get
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              path:
+                eventTransferId: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group,${self:custom.actualStage}-${self:service.name}-read-only-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+    
+  # POST marks
+  postMarks:
+    name: ${self:custom.actualStage}-${self:service.name}-marks-post
+    handler: src/marks.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for adding range of marks"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 30
+    events:
+      - http:
+          path: ${self:service.name}/marks
+          method: post
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              querystrings:
+                batch: true
+                format: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      RANGE_PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):marksRangeSchemaId}
+      RANGE_PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):marksRangeSchemaVersion}
+      BATCH_PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):marksBatchSchemaId}
+      BATCH_PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):marksBatchSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'  
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+      STOCK_PROJECT_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):stockProjectId}
+
+
+  # POST marks
+  putMarks:
+    name: ${self:custom.actualStage}-${self:service.name}-marks-put
+    handler: src/marks.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for updating information about a specific mark"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 30
+    events:
+      - http:
+          path: ${self:service.name}/marks/{markId}
+          method: put
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                markId: true
+              querystrings:
+                component: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      BATCH_MARK_STATE_PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):markStateUpdateBatchSchemaId}
+      BATCH_MARK_STATE_PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):markStateUpdateBatchSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'  
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+      STOCK_PROJECT_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):stockProjectId}
+
+
+  # POST event-transfers
+  postEventTransfers:
+    name: ${self:custom.actualStage}-${self:service.name}-event-transfers-post
+    handler: src/event-transfer.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for adding transfer events"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 15
+    events:
+      - http:
+          path: ${self:service.name}/event-transfers
+          method: post
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):eventTransferSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):eventTransferSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'  
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+      STOCK_PROJECT_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):stockProjectId}
+
+  # POST event-validations
+  postEventValidation:
+    name: ${self:custom.actualStage}-${self:service.name}-event-validations-post
+    handler: src/event-validations.post
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for validating parts of and event prior to an upload attempt"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 1024
+    timeout: 30
+    events:
+      - http:
+          path: ${self:service.name}/projects/{projectId}/event-validations
+          method: post
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                projectId: true
+              querystrings:
+                validationName: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      APPLICATION_DOMAIN: ${file(serverless.${self:custom.actualStage}.cfg.yml):applicationDomain}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):eventValidationSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):eventValidationSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'  
+
+
+  # POST event-validations
+  putEventValidation:
+    name: ${self:custom.actualStage}-${self:service.name}-event-validations-put
+    handler: src/event-validations.put
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for validating parts of and event prior to an upload attempt"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 1024
+    timeout: 30
+    events:
+      - http:
+          path: ${self:service.name}/event-validations/{eventId}
+          method: put
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              querystrings:
+                validationName: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      APPLICATION_DOMAIN: ${file(serverless.${self:custom.actualStage}.cfg.yml):applicationDomain}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):eventValidationSchemaId}
+      PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):eventValidationSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'  
+      
+
+  # Delete Marks
+  deleteMarks:
+    name: ${self:custom.actualStage}-${self:service.name}-marks-delete
+    handler: src/marks.delete
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}
+    description: "Lambda function for deleting batch of marks"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readwritearn}
+    memorySize: 512
+    timeout: 30
+    events:
+      - http:
+          path: ${self:service.name}/marks
+          method: delete
+          caching:
+            enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              querystrings:
+                format: true
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      PAYLOAD_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):payloadSchemaTableName}
+      RANGE_PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):marksRangeSchemaId}
+      RANGE_PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):marksRangeSchemaVersion}
+      BATCH_PAYLOAD_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):marksDeleteBatchSchemaId}
+      BATCH_PAYLOAD_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):marksDeleteBatchSchemaVersion}
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readwrite'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%,rw_%'  
+      BANDING_OFFICE_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):bandingOfficeId}
+      STOCK_PROJECT_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):stockProjectId}
+
+  # GET /banders/<bander-id>/projects
+  getBanderProjects:
+    name: ${self:custom.actualStage}-${self:service.name}-bander-projects-search
+    handler: src/bander-projects.search
+    layers:
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/common/arn}     
+      - ${ssm:/${self:custom.actualStage}/${self:service.name}/lambda/layers/internal/arn}  
+    description: "Search bander projects by bander-id"
+    warmup: true
+    role: ${ssm:/${self:custom.actualStage}/${self:service.name}/iam/readonlyarn}
+    memorySize: 512
+    timeout: 15
+    events:
+      - http:
+          path: ${self:service.name}/banders/{banderId}/projects
+          method: get
+          caching:
+           enabled: false
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: ${ssm:/${self:custom.actualStage}/${self:service.name}/apigw/cognito/authorizer}
+          request:
+            parameters:
+              paths:
+                banderId: true
+              queryStrings:
+                projectState: false
+    environment:
+      ENVIRONMENT: ${self:custom.actualStage}
+      SERVICE_NAME: ${self:service.name}
+      AUTHORIZED_GROUP_LIST: ${self:custom.actualStage}-${self:service.name}-admin-group,${self:custom.actualStage}-${self:service.name}-manager-group,${self:custom.actualStage}-${self:service.name}-user-group
+      PARAMETER_SCHEMA_TABLE: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaTableName}
+      PARAMETER_SCHEMA_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaId}
+      PARAMETER_SCHEMA_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):parameterSchemaVersion}         
+      CUSTOM_ERROR_LIST_TABLE: ${ssm:/${self:custom.actualStage}/${self:service.name}/dynamodb/customerrors}
+      CUSTOM_ERROR_LIST_ID: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaId}
+      CUSTOM_ERROR_LIST_VERSION: ${file(serverless.${self:custom.actualStage}.cfg.yml):customErrorSchemaVersion}
+      DATASTORE_ENDPOINT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/read-endpoint}
+      DATASTORE_PORT: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/port}
+      DATASTORE_DBNAME: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_USERNAME: 'birdbanding_readonly'
+      DATASTORE_SCHEMA_WHITELIST: ${ssm:/${self:custom.actualStage}/${self:service.name}/aurora/cluster/db-name}
+      DATASTORE_TABLEVIEW_WHITELIST: '%'
+      DATASTORE_FUNCTION_WHITELIST: 'ro_%'
+      COGNITO_USER_POOL_ID: ${ssm:/${self:custom.actualStage}/${self:service.name}/cognito/user-pool/id}
+      
+      
+#=====================================
+#=====================================
+# RESOURCES
+#=====================================
+#=====================================
+resources:
+  
+  # Custom Stack Description  
+  Description: 'Birdbanding - Serverless API 2 Stack'
+
+  Resources:
+    DownloadInitiationQueue:
+      Type: "AWS::SQS::Queue" 
+      Properties: 
+        QueueName: 
+          ${self:custom.actualStage}-${self:service.name}-bander-eventdownloads-queue
+        VisibilityTimeout: 910
+        Tags:              
+          - Key: Environment
+            Value: ${self:custom.actualStage}
+
+    DownloadInitiationQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      DependsOn:
+        - DownloadInitiationQueue
+      Properties:
+        PolicyDocument:
+          Id: DownloadInitiationQueuePolicy
+          Version: '2012-10-17'
+          Statement:
+            # --------------------
+            - Sid: LambdaSendAndReceiveFromQueue
+              # --------------------------
+              Principal:
+                AWS: '*'
+              Effect: Allow
+              Action:
+                - 'sqs:SendMessage'
+                - 'sqs:GetQueueUrl'
+                - 'sqs:ReceiveMessage'
+                - 'sqs:DeleteMessage'
+                - 'sqs:GetQueueAttributes'
+                - 'sqs:ListQueues'
+              Resource: !GetAtt DownloadInitiationQueue.Arn
+        Queues:
+          - !Ref DownloadInitiationQueue
+
+

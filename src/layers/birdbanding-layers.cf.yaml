@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: DOC Data Service Template - Lambda Layers
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: General Configuration
+      Parameters:
+      - environment
+      - serviceName
+    ParameterLabels:
+      environment:
+        default: 'Environment:'
+      serviceName:
+        default: 'Data Service name:'
+Parameters:
+  environment:
+    Type: String
+    AllowedValues:
+    - Example
+    Default: Example
+  serviceName:
+    Type: String
+    ConstraintDescription: Must be between 3 - 32 characters long.
+    AllowedPattern: ^[A-Za-z0-9]{3,32}$
+    MinLength: 4
+    MaxLength: 32
+    Default: unknowndataservice
+Mappings:
+  EnvConfig:
+    Example:
+      EnvToLower: example
+      AccountPrefix: exampleprefix
+Resources:
+  CommonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName:
+        Fn::Sub:
+        - doc-api-layer-${service}-common-${env}
+        - env:
+            Fn::FindInMap:
+            - EnvConfig
+            - Ref: environment
+            - EnvToLower
+          service:
+            Ref: serviceName
+      Description: Layer containing common modules for bird banding functions
+      ContentUri: s3://doc-serverlessdeploymentbucket-dev/birdbanding/214530cdaf85047156f002f763e070fc
+      CompatibleRuntimes:
+      - nodejs8.10
+      - nodejs10.x
+      RetentionPolicy: Retain
+  InternalLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName:
+        Fn::Sub:
+        - doc-api-layer-${service}-internal-${env}
+        - env:
+            Fn::FindInMap:
+            - EnvConfig
+            - Ref: environment
+            - EnvToLower
+          service:
+            Ref: serviceName
+      Description: Layer containing common modules for bird banding functions
+      ContentUri: s3://doc-serverlessdeploymentbucket-dev/birdbanding/8f2ee757c07dbab55d036f00ddd8e6dd
+      CompatibleRuntimes:
+      - nodejs8.10
+      - nodejs10.x
+      RetentionPolicy: Retain
+  CommonLayerArn:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description:
+        Fn::Sub: ARN of the common Lambda layer for the ${serviceName} service in
+          the ${environment} environment
+      Name:
+        Fn::Sub:
+        - /${env}/${service}/lambda/layers/common/arn
+        - env:
+            Fn::FindInMap:
+            - EnvConfig
+            - Ref: environment
+            - EnvToLower
+          service:
+            Ref: serviceName
+      Type: String
+      Value:
+        Ref: CommonLayer
+      Tags:
+        Service:
+          Fn::Sub: ${serviceName}
+        Environment:
+          Ref: environment
+  InternalLayerArn:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description:
+        Fn::Sub: ARN of the internal Lambda layer for the ${serviceName} service in
+          the ${environment} environment
+      Name:
+        Fn::Sub:
+        - /${env}/${service}/lambda/layers/internal/arn
+        - env:
+            Fn::FindInMap:
+            - EnvConfig
+            - Ref: environment
+            - EnvToLower
+          service:
+            Ref: serviceName
+      Type: String
+      Value:
+        Ref: InternalLayer
+      Tags:
+        Service:
+          Fn::Sub: ${serviceName}
+        Environment:
+          Ref: environment
+Outputs:
+  TemplateID:
+    Description: Template ID
+    Value: service/layers
+  StackName:
+    Description: Stack name
+    Value:
+      Fn::Sub: ${AWS::StackName}
+  CommonLayerArn:
+    Description: The ARN of the common Lambda layer
+    Value:
+      Ref: CommonLayer
+  InternalLayerArn:
+    Description: The ARN of the internal Lambda layer
+    Value:
+      Ref: InternalLayer

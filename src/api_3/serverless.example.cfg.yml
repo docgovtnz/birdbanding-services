@@ -1,0 +1,114 @@
+# Note that this is identical across the folders `api`, `api_2` and `api_3`
+
+# Try to use the SSM paramater store to store configuration
+# variables in the first instance. This should be your SECOND choice.
+applicationDomain: "https://<app_domain>"
+adminBanderListDownloadPath: "admin-bander-list/bander_details_export.csv"
+birdbandingResourcePathId: "xxxxxx"
+birdbandingBandersResourcePathId: "xxxxxx"
+birdbandingProjectsDetailResourcePathId: "xxxxxx"
+birdbandingBirdsDetailResourcePathId: "xxxxxx"
+birdbandingProjectEventsDetailResourcePathId: "xxxxxx"
+senderEmailAddress: "<email address>"
+parameterSchemaTableName: "dev-doc-schema-definitions"
+parameterSchemaId: "/birdbanding/api/parameters.json"
+parameterSchemaVersion: 1
+payloadSchemaTableName: "dev-doc-schema-definitions"
+banderSchemaId: "/birdbanding/api/payload/bander.json"
+banderSchemaVersion: 1
+banderCertificationsPayloadSchemaId: "/birdbanding/api/payload/bander-certifications.json"
+banderCertificationsPayloadSchemaVersion: 1
+eventSchemaId: "/birdbanding/api/payload/event.json"
+eventSchemaVersion: 1
+publicEventSchemaId: "/birdbanding/api/payload/public-event.json"
+publicEventSchemaVersion: 1
+banderProjectSchemaId: "/birdbanding/api/payload/bander-project.json"
+banderProjectSchemaVersion: 1
+banderDownloadSchemaId: "/birdbanding/api/payload/bander-eventdownload.json"
+banderDownloadSchemaVersion: 1
+birdSchemaId: "/birdbanding/api/payload/bird.json"
+birdSchemaVersion: 1
+processedEventSchemaId: "/birdbanding/api/internal/event.json"
+processedEventSchemaVersion: 1
+updatedEventSchemaId: "/birdbanding/api/internal/event-update.json"
+updatedEventSchemaVersion: 1
+eventValidationSchemaId: "/birdbanding/api/internal/event-validation.json"
+eventValidationSchemaVersion: 1
+eventTransferSchemaId: "/birdbanding/api/payload/event-transfer.json"
+eventTransferSchemaVersion: 1
+advancedSearchSchemaId: "/birdbanding/api/internal/advanced-search.json"
+advancedSearchSchemaVersion: 1
+projectSchemaId: "/birdbanding/api/payload/project.json"
+projectSchemaVersion: 1
+projectMemberListSchemaId: "/birdbanding/api/payload/project-member-list.json"
+projectMemberListSchemaVersion: 1
+customErrorSchemaId: "/birdbanding/api/internal/custom-errors.json"
+customErrorSchemaVersion: 1
+loggingSchemaId: "/birdbanding/api/payload/logging.json"
+loggingSchemaVersion: 1
+metadataSchemaTableName: "dev-doc-schema-definitions"
+metadataSchemaId: "/birdbanding/event-spreadsheet/put/metadata.json"
+metadataSchemaVersion: 1
+marksRangeSchemaId: "/birdbanding/api/payload/marks-range.json"
+marksRangeSchemaVersion: 1
+marksBatchSchemaId: "/birdbanding/api/payload/marks-batch.json"
+marksBatchSchemaVersion: 1
+marksDeleteBatchSchemaId: "/birdbanding/api/payload/marks-delete-batch.json"
+marksDeleteBatchSchemaVersion: 1
+markStateUpdateBatchSchemaId: "/birdbanding/api/payload/mark-state-update-batch.json"
+markStateUpdateBatchSchemaVersion: 1
+cmsContentSchemaId: "/birdbanding/api/payload/cms-content.json"
+cmsContentSchemaVersion: 1
+cmsUpdateContentSchemaId: "/birdbanding/api/payload/cms-update-content.json"
+cmsUpdateContentSchemaVersion: 1
+cmsAttachmentSchemaId: "/birdbanding/api/payload/cms-attachment.json"
+cmsAttachmentSchemaVersion: 1
+spreadsheetMapSchemaTableName: "dev-doc-schema-definitions"
+spreadsheetMapSchemaId: "/birdbanding/spreadsheet/full/mapping.json"
+spreadsheetMapSchemaVersion: 10.0
+spreadsheetPayloadSchemaId: "/birdbanding/api/payload/bander-uploads.json"
+spreadsheetPayloadSchemaVersion: 1
+preprocessingSchemaTableName: "dev-doc-schema-definitions"
+preprocessingSchemaId: "/birdbanding/api/internal/preprocessed-bander-upload.json"
+preprocessingSchemaVersion: 1
+projectEventsUpdateSchemaId: "/birdbanding/api/payload/project-event-update.json"
+projectEventsUpdateSchemaVersion: 1
+markEventUpdateSchemaId: "/birdbanding/api/payload/mark-event-update.json"
+markEventUpdateSchemaVersion: 1
+markEventBatchCreateSchemaId: "/birdbanding/api/payload/mark-event-batch-create.json"
+markEventBatchCreateSchemaVersion: 1
+markEventBatchUpdateSchemaId: "/birdbanding/api/payload/mark-event-batch-update.json"
+markEventBatchUpdateSchemaVersion: 1
+birdUpdateSchemaId: "/birdbanding/api/payload/bird-update.json"
+birdUpdateSchemaVersion: 1
+deploymentBucketName: "doc-serverlessdeploymentbucket-dev"
+targetUploadBucket: "dev-doc-datalake-raw"
+targetUploadPath: "birdbanding/spreadsheets"
+targetUploadExpiry: 300
+banderListExportCron: cron(00 6,18 * * ? *)
+bandingOfficeId: 7026cb78-6c77-4082-8d5e-dcb16237dfab
+stockProjectId: 00000000-0000-0000-0000-000000000004
+vpcSecurityGroupIds:
+- sg-xxxxxxxx
+vpcSubnetIds:
+- subnet-xxxxxxxx
+- subnet-xxxxxxxx
+- subnet-xxxxxxxx
+wafACLId: "NO_INTEGRATION"
+banderUploadSQSQueueArn: "arn:aws:sqs:ap-southeast-2:12345678:xxxx"
+banderUploadSQSQueueUrl: "https://sqs.ap-southeast-2.amazonaws.com/12345678/xxxx"
+resourcePolicy:
+    - Effect: Deny
+      Principal: '*'
+      Action: execute-api:Invoke
+      Resource:
+        - arn:aws:execute-api:ap-southeast-2:12345678:xxxx/*/*/*
+      Condition:
+        NotIpAddress:
+          aws:SourceIp:
+            - '10.0.0.0/8'
+    - Effect: Allow
+      Principal: '*'
+      Action: execute-api:Invoke
+      Resource:
+        - arn:aws:execute-api:ap-southeast-2:12345678:xxxx/*/*/*

@@ -1,0 +1,353 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A schema for validating advanced search payload bodies",
+  "id": "/birdbanding/api/internal/advanced-search",
+  "title": "Birdbanding - API Parameters",
+  "definitions": {
+    "unspecifiedString": {
+      "type": "string"
+    },
+    "unspecifiedNullableString": {
+      "type": ["string", "null"]
+    },
+    "unspecifiedNullableInt": {
+      "type": ["integer", "null"]
+    },
+    "unspecifiedString50Char": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 50
+    },
+    "unspecifiedStringShort": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedNullableStringShort": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedStringLong": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedNullableStringLong": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "urlDecodedString": {
+      "type": "string",
+      "pattern": "^[\\S|\\s]+$"
+    },
+    "uuidv4String": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "intString": {
+      "type": "string",
+      "pattern": "^-?\\d+$"
+    },
+    "md5String": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "iso8601DatetimeString": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "iso8601DateString": {
+      "type": "string",
+      "format": "date"
+    }, 
+    "iso8601TimeString": {
+      "type": "string",
+      "format": "time"
+    },
+    "nznbbsCodeEnum": {
+      "type": "string",
+      "enum": ["1", "Z", "C", "2A", "2B", "2C", "2D", "3", "X", "0", "L", "T", "R", "P", "U", "Y", "NEW"]
+    },
+    "birdNznbbsCodeEnum": {
+      "type": "string",
+      "enum": ["1", "Z", "C", "2A", "2B", "2C", "2D", "3", "X"]
+    },
+    "booleanString": {
+      "type": "string",
+      "enum": ["true", "false"]
+    },
+    "pageNameEnum": {
+      "type": "string",
+      "enum": ["viewData", "viewMarks"]
+    },
+    "certSearchEnum": {
+      "type": "string",
+      "enum": ["ENDORSEMENT", "SPECIES_GROUP_ID"]
+    },
+    "competencyLevel": {
+      "type": "string",
+      "enum": ["L1", "L2", "L3"]
+    },
+    "endorsementEnum": {
+      "type": "string",
+      "enum": ["Mist-netting","Mist-netting waterfowl","Cannon-netting", "Net gun", "Pullus", "Transponder insertion"]
+    },
+    "speciesGroupId": {
+      "type": "string",
+      "pattern": "^\\d+$"
+    },
+    "projectState": {
+      "type": "string",
+      "enum": ["AWAITING_APPROVAL", "INACTIVE", "ACTIVE"]
+    },
+    "responseFormat": {
+      "type": ["string"],
+      "enum": ["summary","range","batch", "file"]
+    },
+    "version": {
+      "type": ["string"],
+      "enum": ["v2"]
+    },
+    "sortOrder": {
+      "type": "string",
+      "enum": [
+        "standard", 
+        "eventTimestamp", 
+        "prefixNumber", 
+        "shortNumber", 
+        "projectName", 
+        "reporterCertNumber", 
+        "speciesCode",
+        "speciesCommonName", 
+        "uploadTimestamp",
+        "locationDescription"
+      ]
+    },
+    "orderDirection": {
+      "type": "string",
+      "enum": ["ASC", "DESC"]
+    },
+    "enumId": {
+      "type": "string",
+      "enum": ["viewData", "managePeople", "viewProjects", "publicSighting", "manageStock", "uploadData"]
+    },
+    "markStateEnum": {
+      "type": "string",
+      "enum": [
+        "NEW",
+        "ALLOCATED",
+        "ATTACHED",
+        "DETACHED",
+        "RETURNED",
+        "PRACTICE",
+        "LOST",
+        "RETURNED_USED",
+        "OTHER"
+      ]
+    },
+    "eventValidationEnum": {
+      "type": "string",
+      "enum": [
+        "event",
+        "markConfiguration",
+        "bird",
+        "bander",
+        "location"
+      ]
+    },
+    "bandingSchemeEnum": {
+      "type": "string",
+      "enum": [
+        "NZ_NON_GAMEBIRD", "NZ_GAMEBIRD", "FOREIGN"
+      ]
+    },
+    "latitude": {
+      "type": "number",
+      "minimum": -90,
+      "maximum": 90 
+    },
+    "longitude": {
+      "type": "number",
+      "minimum": -180,
+      "maximum": 180 
+    },
+    "bandNumber": {
+      "type": "string",
+      "pattern": "^([a-zA-Z0-9\\*]*-[a-zA-Z0-9\\*]*)+$"
+    },
+    "markSideEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "LEFT", "RIGHT", null
+      ]
+    },
+    "markPositionEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "TIBIA", "TARSUS", null
+      ]
+    },
+    "markTypeEnum": {
+      "type": "string",
+      "enum": [
+        "LEG_BAND", "LEG_TRANSPONDER", "INSERTED_TRANSPONDER",
+        "WEB", "JESS", "GPS", "TDR", "GLS", "FLIPPER", "WING", "TRANSMITTER", "OTHER"
+      ]
+    },
+    "markTypeEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "LEG_BAND", "LEG_TRANSPONDER", "INSERTED_TRANSPONDER",
+        "WEB", "JESS", "GPS", "TDR", "GLS", "FLIPPER", "WING", "TRANSMITTER", "OTHER", null
+      ]
+    },
+    "markFormEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "BUTT", "BUTT_HALF_METAL", "WRAPAROUND_1", "WRAPAROUND_1_5",
+        "WRAPAROUND_1_75", "WRAPAROUND_2", "WRAPAROUND_UNKNOWN",
+        "SPIRAL", "FLAG", "OTHER", null
+      ]
+    },
+    "markMaterialEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "METAL", "ACETATE", "DARVIC", "CELLULOID", "OTHER",
+        "PLASTIC_UNSPECIFIED", "ACRYLIC", null
+      ]
+    },
+    "markFixingEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "GLUE", "THF", "SUPERGLUE", "PIPE_CEMENT", "SELLEYS_PLASTIC_FIX_2_STEP",
+        "SOLDER", "DOUBLE_SIDED_TAPE", "SOLVENT", "OTHER", null
+      ]
+    },
+    "markColourEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "BLACK", "WHITE", "GREY", "RED", "ORANGE", "PALE_ORANGE", "FLUORESCENT_ORANGE",
+        "YELLOW", "PALE_PINK", "PINK", "FLUORESCENT_PINK", "CRIMSON_PINK", "FLUORESCENT_PURPLE",
+        "LIGHT_PURPLE", "PURPLE", "PALE_BLUE", "FLUORESCENT_BLUE", "LIGHT_BLUE", "BLUE", "DARK_BLUE",
+        "FLUORESCENT_GREEN", "LIME_GREEN", "PALE_GREEN", "GREEN", "DARK_GREEN", "BROWN", "BLUE_STRIPED_PINK",
+        "GREEN_STRIPED_PURPLE", "RED_STRIPED_WHITE", "PINK_STRIPED_WHITE", "BLUE_STRIPED_YELLOW",
+        "OTHER", null
+      ]
+    }
+  },
+  "type": "object",   
+  "properties": {
+    "projectId": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/uuidv4String" }
+    },
+    "speciesId": {
+      "type": "array",
+      "items": { "type": "integer" }
+    },
+    "friendlyName": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/unspecifiedStringShort" }
+    },
+    "speciesGroup": {
+      "type": "array",
+      "items": { "type": "integer" }
+    },
+    "bandingScheme": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/bandingSchemeEnum" }
+    },
+    "reporterId": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/uuidv4String" }
+    },
+    "providerId": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/uuidv4String" }
+    },
+    "ownerId": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/uuidv4String" }
+    },
+    "userId": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/uuidv4String" }
+    },
+    "eventDate": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/iso8601DateString" }
+    },
+    "eventDateGte": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/iso8601DateString" }
+    },
+    "eventDateLte": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/iso8601DateString" }
+    },
+    "nznbbsCode": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/nznbbsCodeEnum" }
+    },
+    "latitudeLte": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/latitude" }
+    },
+    "latitudeGte": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/latitude" }
+    },
+    "longitudeLte": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/longitude" }
+    },
+    "longitudeGte": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/longitude" }
+    },
+    "locationDescription": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/unspecifiedStringLong" }
+    },
+    "comments": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/unspecifiedStringLong" }
+    },
+    "bandNumber": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/bandNumber" }
+    },
+    "otherAlphanumeric": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/unspecifiedStringShort" }
+    },
+    "markConfiguration": {
+      "type": "array",
+      "items": { 
+        "type": "object",
+        "properties": {
+          "side": { "$ref": "#/definitions/markSideEnumNullable" },
+          "position": { "$ref": "#/definitions/markPositionEnumNullable" },
+          "location_idx": { "$ref": "#/definitions/unspecifiedNullableInt" },
+          "mark_type": { "$ref": "#/definitions/markTypeEnumNullable" },
+          "mark_form": { "$ref": "#/definitions/markFormEnumNullable" },
+          "mark_material": { "$ref": "#/definitions/markMaterialEnumNullable" },
+          "mark_fixing": { "$ref": "#/definitions/markFixingEnumNullable" },
+          "colour": { "$ref": "#/definitions/markColourEnumNullable" },
+          "text_colour": { "$ref": "#/definitions/markColourEnumNullable" },
+          "alphanumeric_text": { "$ref": "#/definitions/unspecifiedNullableString" }
+        }
+      }
+    }
+  },
+  "required": [
+    "projectId", "speciesId", "friendlyName", "speciesGroup", "bandingScheme", 
+    "reporterId", "providerId", "ownerId", "userId", 
+    "eventDate", "eventDateLte", "eventDateGte", "nznbbsCode",
+    "latitudeLte", "latitudeGte", "longitudeLte", "longitudeGte",
+    "locationDescription", "comments", "bandNumber", "otherAlphanumeric", 
+    "markConfiguration"
+  ]
+}

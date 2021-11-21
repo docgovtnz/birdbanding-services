@@ -1,0 +1,294 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A schema describing for validating incoming bander-eventdownloads payloads for birdbanding service API calls",
+  "id": "/birdbanding/api/payload/bander-eventdownload",
+  "title": "Birdbanding - API Payload - Bander <-> Downloads",
+  "definitions": {
+    "unspecifiedString": {
+      "type": "string"
+    },
+    "unspecifiedNullableString": {
+      "type": ["string", "null"]
+    },
+    "unspecifiedStringShort": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedNullableStringShort": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedStringLong": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedNullableStringLong": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedInt": {
+      "type": "integer"
+    },
+    "unspecifiedNullableInt": {
+      "type": ["integer", "null"]
+    },
+    "unspecifiedBool": {
+      "type": "boolean"
+    },
+    "unspecifiedBoolString": {
+      "type": "string",
+      "enum": ["true","false"]
+    },
+    "uuidv4String": {
+    "type": "string",
+    "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "intString": {
+      "type": "string",
+      "pattern": "^\\d+$"
+      },
+    "md5String": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+      },
+    "iso8601DatetimeString": {
+      "type": "string",
+      "format": "date-time"
+      }, 
+    "iso8601DatetimeStringNullable": {
+      "type": ["string", "null"],
+      "format": "date-time"
+      }, 
+    "iso8601DateString": {
+      "type": "string",
+      "format": "date"
+      }, 
+    "iso8601TimeString": {
+      "type": "string",
+      "format": "time"
+      },
+    "emailString": {
+      "type": "string",
+      "format": "email"
+    },
+    "nznbbsCertificationNumberStringNullable": {
+      "type": ["string", "null"],
+      "pattern": "^(ORG|H){0,1}[0-9]+$"
+    },
+    "banderStateEnum": {
+      "type": "string",
+      "enum": ["LOCKED","ACTIVE","SUSPENDED", "INACTIVE"]
+    },
+    "banderDownloadsEnum": {
+      "type": "string",
+      "enum": ["REQUEST","START","IN_PROGRESS", "READY"]
+    },
+    "bandingSchemeEnum": {
+      "type": "string",
+      "enum": [
+        "NZ_NON_GAMEBIRD", "NZ_GAMEBIRD", "FOREIGN"
+      ]
+    },
+    "nznbbsCodeEnum": {
+      "type": "string",
+      "enum": ["1", "Z", "C", "2A", "2B", "2C", "2D", "3", "X", "0", "L", "T", "R", "P", "U", "Y", "NEW"]
+    },
+    "latitude": {
+      "type": "number",
+      "minimum": -90,
+      "maximum": 90 
+    },
+    "longitude": {
+      "type": "number",
+      "minimum": -180,
+      "maximum": 180 
+    },
+    "bandNumber": {
+      "type": "string",
+      "pattern": "^([a-zA-Z0-9\\*]*-[a-zA-Z0-9\\*]*)+$"
+    },
+    "markSideEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "LEFT", "RIGHT", null
+      ]
+    },
+    "markPositionEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "TIBIA", "TARSUS", null
+      ]
+    },
+    "markTypeEnum": {
+      "type": "string",
+      "enum": [
+        "LEG_BAND", "LEG_TRANSPONDER", "INSERTED_TRANSPONDER",
+        "WEB", "JESS", "GPS", "TDR", "GLS", "FLIPPER", "WING", "TRANSMITTER", "OTHER"
+      ]
+    },
+    "markTypeEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "LEG_BAND", "LEG_TRANSPONDER", "INSERTED_TRANSPONDER",
+        "WEB", "JESS", "GPS", "TDR", "GLS", "FLIPPER", "WING", "TRANSMITTER", "OTHER", null
+      ]
+    },
+    "markFormEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "BUTT", "BUTT_HALF_METAL", "WRAPAROUND_1", "WRAPAROUND_1_5",
+        "WRAPAROUND_1_75", "WRAPAROUND_2", "WRAPAROUND_UNKNOWN",
+        "SPIRAL", "FLAG", "OTHER", null
+      ]
+    },
+    "markMaterialEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "METAL", "ACETATE", "DARVIC", "CELLULOID", "OTHER",
+        "PLASTIC_UNSPECIFIED", "ACRYLIC", null
+      ]
+    },
+    "markFixingEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "GLUE", "THF", "SUPERGLUE", "PIPE_CEMENT", "SELLEYS_PLASTIC_FIX_2_STEP",
+        "SOLDER", "DOUBLE_SIDED_TAPE", "SOLVENT", "OTHER", null
+      ]
+    },
+    "markColourEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "BLACK", "WHITE", "GREY", "RED", "ORANGE", "PALE_ORANGE", "FLUORESCENT_ORANGE",
+        "YELLOW", "PALE_PINK", "PINK", "FLUORESCENT_PINK", "CRIMSON_PINK", "FLUORESCENT_PURPLE",
+        "LIGHT_PURPLE", "PURPLE", "PALE_BLUE", "FLUORESCENT_BLUE", "LIGHT_BLUE", "BLUE", "DARK_BLUE",
+        "FLUORESCENT_GREEN", "LIME_GREEN", "PALE_GREEN", "GREEN", "DARK_GREEN", "BROWN", "BLUE_STRIPED_PINK",
+        "GREEN_STRIPED_PURPLE", "RED_STRIPED_WHITE", "PINK_STRIPED_WHITE", "BLUE_STRIPED_YELLOW",
+        "OTHER", null
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "download_status": { "$ref": "#/definitions/banderDownloadsEnum" },
+    "advanced_search": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/uuidv4String" }
+        },
+        "speciesId": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "friendlyName": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/unspecifiedStringShort" }
+        },
+        "speciesGroup": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "bandingScheme": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/bandingSchemeEnum" }
+        },
+        "reporterId": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/uuidv4String" }
+        },
+        "providerId": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/uuidv4String" }
+        },
+        "ownerId": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/uuidv4String" }
+        },
+        "userId": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/uuidv4String" }
+        },
+        "eventDate": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/iso8601DateString" }
+        },
+        "eventDateGte": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/iso8601DateString" }
+        },
+        "eventDateLte": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/iso8601DateString" }
+        },
+        "nznbbsCode": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/nznbbsCodeEnum" }
+        },
+        "latitudeLte": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/latitude" }
+        },
+        "latitudeGte": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/latitude" }
+        },
+        "longitudeLte": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/longitude" }
+        },
+        "longitudeGte": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/longitude" }
+        },
+        "locationDescription": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/unspecifiedStringLong" }
+        },
+        "comments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/unspecifiedStringLong" }
+        },
+        "bandNumber": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/bandNumber" }
+        },
+        "otherAlphanumeric": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/unspecifiedStringShort" }
+        },
+        "markConfiguration": {
+          "type": "array",
+          "items": { 
+            "type": "object",
+            "properties": {
+              "side": { "$ref": "#/definitions/markSideEnumNullable" },
+              "position": { "$ref": "#/definitions/markPositionEnumNullable" },
+              "location_idx": { "$ref": "#/definitions/unspecifiedNullableInt" },
+              "mark_type": { "$ref": "#/definitions/markTypeEnumNullable" },
+              "mark_form": { "$ref": "#/definitions/markFormEnumNullable" },
+              "mark_material": { "$ref": "#/definitions/markMaterialEnumNullable" },
+              "mark_fixing": { "$ref": "#/definitions/markFixingEnumNullable" },
+              "colour": { "$ref": "#/definitions/markColourEnumNullable" },
+              "text_colour": { "$ref": "#/definitions/markColourEnumNullable" },
+              "alphanumeric_text": { "$ref": "#/definitions/unspecifiedNullableString" }
+            }
+          }
+        }
+      },
+      "required": [
+        "projectId", "speciesId", "friendlyName", "speciesGroup", "bandingScheme", 
+        "reporterId", "providerId", "ownerId", "userId", 
+        "eventDate", "eventDateLte", "eventDateGte", "nznbbsCode",
+        "latitudeLte", "latitudeGte", "longitudeLte", "longitudeGte",
+        "locationDescription", "comments", "bandNumber", "otherAlphanumeric", 
+        "markConfiguration"
+      ]
+    }
+  },
+  "required": ["download_status"]
+}

@@ -1,0 +1,260 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A schema describing for validating incoming event payloads for birdbanding service API calls",
+  "id": "/birdbanding/api/payload/event",
+  "title": "Birdbanding - API Payload - Event",
+  "definitions": {
+    "unspecifiedString": {
+      "type": "string"
+    },
+    "unspecifiedNullableString": {
+      "type": ["string", "null"]
+    },
+    "unspecifiedStringShort": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedNullableStringShort": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedStringLong": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedNullableStringLong": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedInt": {
+      "type": "integer"
+    },
+    "unspecifiedBool": {
+      "type": "boolean"
+    },
+    "uuidv4String": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "intString": {
+      "type": "string",
+      "pattern": "^\\d+$"
+    },
+    "md5String": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "iso8601DatetimeString": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "iso8601DatetimeStringNullable": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "iso8601DateString": {
+      "type": "string",
+      "format": "date"
+    },
+    "iso8601TimeString": {
+      "type": "string",
+      "format": "time"
+    },
+    "emailString": {
+      "type": "string",
+      "format": "email"
+    },
+    "eventTypeEnum": {
+      "type": "string",
+      "enum": [
+        "0",
+        "1",
+        "2",
+        "2A",
+        "2B",
+        "2C",
+        "2D",
+        "3",
+        "4",
+        "R",
+        "T",
+        "L",
+        "P",
+        "U",
+        "X",
+        "Y"
+      ]
+    },
+    "eventStateEnum": {
+      "type": "string",
+      "enum": [
+        "AWAITING_REVIEW",
+        "VALID"
+      ]
+    },
+    "eventTSAccuracyEnum": {
+      "type": "string",
+      "enum": [
+        "D",
+        "M",
+        "Y",
+        "U"
+      ]
+    },
+    "latlon": {
+      "type": "number",
+      "minimum": -180,
+      "maximum": 180
+    },
+    "markSideEnum": {
+      "type": "string",
+      "enum": [
+        "LEFT",
+        "RIGHT"
+      ]
+    },
+    "markPosEnum": {
+      "type": "string",
+      "enum": [
+        "TIBIA",
+        "TARSUS"
+      ]
+    },
+    "markLocEnum": {
+      "type": "string",
+      "enum": [
+        "ABOVE_COLOURS",
+        "BETWEEN_COLOURS",
+        "BELOW_NO_COLOURS"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "event": {
+      "type": "object",
+      "properties": {
+        "event_type": {
+          "$ref": "#/definitions/eventTypeEnum"
+        },
+        "event_state": {
+          "$ref": "#/definitions/eventStateEnum"
+        },
+        "event_timestamp": {
+          "$ref": "#/definitions/iso8601DatetimeString"
+        },
+        "event_timestamp_accuracy": {
+          "$ref": "#/definitions/eventTSAccuracyEnum"
+        },
+        "event_reporter_id": {
+          "$ref": "#/definitions/uuidv4String"
+        },
+        "event_provider_id": {
+          "$ref": "#/definitions/uuidv4String"
+        },
+        "bird_id": {
+          "$ref": "#/definitions/uuidv4String"
+        },
+        "latitude": {
+          "$ref": "#/definitions/latlon"
+        },
+        "longitude": {
+          "$ref": "#/definitions/latlon"
+        },
+        "location_description": {
+          "$ref": "#/definitions/unspecifiedString"
+        },
+        "locality_general": {
+          "$ref": "#/definitions/unspecifiedString"
+        },
+        "locality_accuracy": {
+          "$ref": "#/definitions/unspecifiedInt"
+        },
+        "comments": {
+          "$ref": "#/definitions/unspecifiedString"
+        }
+      },
+      "required": [
+        "event_type",
+        "event_state",
+        "event_timestamp",
+        "event_reporter_id",
+        "event_provider_id",
+        "latitude",
+        "longitude"
+      ]
+    },
+    "bird": {
+      "type": "object",   
+      "properties": {
+        "species_id": { "$ref": "#/definitions/uuidv4String" },
+        "friendly_name": { "$ref": "#/definitions/unspecifiedString" }
+      },
+      "required": ["species_id"]
+    },
+    "mark_configuration": {
+      "type": "array",
+      "items": {
+        "mark_id": {
+          "$ref": "#/definitions/uuidv4String"
+        },
+        "type_tags": {
+          "$ref": "#/definitions/unspecifiedString"
+        },
+        "colour": {
+          "$ref": "#/definitions/unspecifiedString"
+        },
+        "text_colour": {
+          "$ref": "#/definitions/unspecifiedString"
+        },
+        "alphanumeric_text": {
+          "$ref": "#/definitions/unspecifiedString"
+        },
+        "attachment_type": {
+          "$ref": "#/definitions/unspecifiedString"
+        },
+        "side": {
+          "$ref": "#/definitions/markSideEnum"
+        },
+        "position": {
+          "$ref": "#/definitions/markPosEnum"
+        },
+        "location": {
+          "$ref": "#/definitions/markLocEnum"
+        },
+        "other_description": {
+          "$ref": "#/definitions/unspecifiedString"
+        }
+      },
+      "required": [
+        "colour"
+      ]
+    },
+    "characteristic_measurements": {
+      "type": "array",
+      "items": {
+        "characteristic_id": {
+          "$ref": "#/definitions/unspecifiedInt"
+        },
+        "value": {
+          "$ref": "#/definitions/unspecifiedString"
+        }
+      },
+      "required": [
+        "characteristic_id",
+        "value"
+      ]
+    }
+  },
+  "required": [
+    "event",
+    "mark_configuration"
+  ]
+}

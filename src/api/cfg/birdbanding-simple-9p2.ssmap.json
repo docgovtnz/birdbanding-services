@@ -1,0 +1,44 @@
+{
+  "id": "/birdbanding/spreadsheet/simple/mapping",
+  "description": "A Spreadsheet Mapping Object describing the column<->object mapping for Birdbanding",
+  "eventBatchMapping": {
+    "event":{
+      "bird_region_code": "Region_Code",
+      "latitude": "Latitude",
+      "longitude": "Longitude",      
+      "location_accuracy": "Locality_accuracy",
+      "location_general": "Locality_general",
+      "location_description": "Locality_description",
+      "comments": "Notes"
+    },
+    "age": "Age",
+    "bandPrefixNumber": "Band_prefix",
+    "bandShortNumber": "Band_number",
+    "captureCode": "Capture_code",
+    "changedBandPrefixNumber": [
+      "Removed_prefix",
+      "Added_prefix"
+    ],
+    "changedBandShortNumber": [
+      "Removed_number",
+      "Added_number"
+    ],
+    "colour": [
+      "Left_tibia",
+      "Left_tarsus",
+      "Right_tibia",
+      "Right_tarsus"
+    ],
+    "condition": "Condition",
+
+    "marks": "Marks",
+    "nznbbsCode": "NZNBBS_Code",
+    "proposedL3Number": "L3_number",
+    "recordTimestamp": "Date",
+    "recordTimestampAccuracy": "Date_Accuracy",
+    "sex": "Sex",
+    "speciesCode": "Species_Code",
+    "wildCaptive": "Wild_Captive"
+  },
+  "title": "Birdbanding Spreadsheet Mapping (Simple)"
+}

@@ -1,0 +1,171 @@
+---
+## This template creates service-specific lambda layers
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: "DOC Data Service Template - Lambda Layers"
+
+## ::METADATA::
+Metadata:
+  'AWS::CloudFormation::Interface':
+    
+    ParameterGroups:
+    #---------------  
+      - Label: 
+          default: "General Configuration"
+        Parameters:
+          - environment
+          - serviceName        
+
+    ParameterLabels:
+    #---------------  
+
+      # General Configuration
+
+      environment:
+        default: "Environment:"
+      serviceName:
+        default: "Data Service name:"
+
+## ::PARAMETERS::
+Parameters:
+
+  # General Configuration
+
+  environment:
+    Type: String
+    AllowedValues:
+    - "Example"
+    Default: "Example"
+
+  serviceName:
+    Type: String
+    ConstraintDescription: "Must be between 3 - 32 characters long."
+    AllowedPattern: "^[A-Za-z0-9]{3,32}$"
+    MinLength: 4
+    MaxLength: 32
+    Default: "unknowndataservice"
+
+## ::CONDITIONS::
+
+# <None>
+
+## ::MAPPINGS::
+Mappings:
+
+# Environment-Specific Config
+  EnvConfig:
+    Example:
+      EnvToLower: 'example'
+      AccountPrefix: 'exampleprefix'
+
+## ::RESOURCES::
+Resources:
+  # ------------------
+  # Lambda Layers
+  # ------------------
+
+  # This is the common layer that includes all the runtime dependencies
+  # for the various Lambda functions, i.e. NPM modules.
+  # Don't add modules directly in Lambda functions unless they're specific
+  # to that Lambda function. Best to add them to a layer for import to
+  # all related functions.
+  CommonLayer:
+    Type: 'AWS::Serverless::LayerVersion'
+    Properties:
+      LayerName: !Sub 
+        - "doc-api-layer-${service}-common-${env}"
+        - { 
+            env: !FindInMap [ EnvConfig, !Ref environment, EnvToLower ],
+            service: !Ref serviceName  
+          }
+      Description: 'Layer containing common modules for bird banding functions'
+      ContentUri: 'birdbanding-layer-common/' # Directory
+      CompatibleRuntimes:
+        - nodejs8.10
+        - nodejs10.x
+        - nodejs12.x
+        - nodejs14.x
+      RetentionPolicy: Retain
+
+  # This is the internal layer that includes library-type classes
+  # and helper functions for the various Lambda functions. This layer
+  # is intended for internal DOC libraries rather than publicly-available
+  # NPM modules.
+  InternalLayer:
+    Type: 'AWS::Serverless::LayerVersion'
+    Properties:
+      LayerName: !Sub 
+        - "doc-api-layer-${service}-internal-${env}"
+        - { 
+            env: !FindInMap [ EnvConfig, !Ref environment, EnvToLower ],
+            service: !Ref serviceName  
+          }
+      Description: 'Layer containing common modules for bird banding functions'
+      ContentUri: 'birdbanding-layer-internal/' # Directory
+      CompatibleRuntimes:
+        - nodejs8.10
+        - nodejs10.x
+        - nodejs12.x
+        - nodejs14.x
+      RetentionPolicy: Retain
+
+## SSM PARAMETERS
+
+  # Common Layer ARN
+  CommonLayerArn:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: !Sub "ARN of the common Lambda layer for the ${serviceName} service in the ${environment} environment"
+      Name: !Sub
+        - '/${env}/${service}/lambda/layers/common/arn'
+        - {
+          env: !FindInMap [ EnvConfig, !Ref environment, EnvToLower ],
+          service: !Ref serviceName
+          }
+      Type: 'String'
+      Value: !Ref 'CommonLayer'
+      # Tag Config
+      Tags:        
+        Service: !Sub '${serviceName}'
+        Environment: !Ref environment
+
+  # Internal Layer ARN
+  InternalLayerArn:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Description: !Sub "ARN of the internal Lambda layer for the ${serviceName} service in the ${environment} environment"
+      Name: !Sub
+        - '/${env}/${service}/lambda/layers/internal/arn'
+        - {
+          env: !FindInMap [ EnvConfig, !Ref environment, EnvToLower ],
+          service: !Ref serviceName
+          }
+      Type: 'String'
+      Value: !Ref 'InternalLayer'
+      # Tag Config
+      Tags:        
+        Service: !Sub '${serviceName}'
+        Environment: !Ref environment'  
+
+## ::OUTPUTS::
+Outputs:
+
+  TemplateID:
+    Description: 'Template ID'
+    Value: 'service/layers'
+
+  StackName:
+    Description: 'Stack name'
+    Value: !Sub '${AWS::StackName}'
+
+  # Lambda function names
+
+  CommonLayerArn:
+    Description: "The ARN of the common Lambda layer"
+    # Ref returns the ARN
+    Value: !Ref 'CommonLayer'
+
+  InternalLayerArn:
+    Description: "The ARN of the internal Lambda layer"
+    Value: !Ref 'InternalLayer'  

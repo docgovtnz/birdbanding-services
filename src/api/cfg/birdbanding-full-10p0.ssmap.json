@@ -1,0 +1,402 @@
+{
+  "id": "/birdbanding/spreadsheet/full/mapping",
+  "description": "A Spreadsheet Mapping Object describing the property-to-heading mapping for a spreadsheet",
+  "title": "Birdbanding Spreadsheet Mapping (Full)",
+  "sheet_name": "Bands",
+  "version_cell_ref": "DC1",
+  "internal_version_id": "v.FALCON.1",
+  "header_row": 1,
+  "starting_row": 2,
+  "max_row_count": 1002,
+  "ordered_property_array": [
+    "prefix_number", "short_number", "event_timestamp", "event_timestamp_accuracy",
+    "event_banding_scheme", "event_provider_number", "info_event_provider_name",
+    "event_reporter_number", "info_event_reporter_name", "info_other_name",
+    "info_other_contact", "info_nznbbs_code", "info_lookup_code", "mark_state_code",
+    "event_type", "event_capture_type", "event_bird_situation", "info_species_common_name",
+    "info_species_scientific_name", "species_code", "characteristic_age", "characteristic_sex",
+    "location_comment", "locality_general", "location_description", "latitude", "longitude", 
+    "user_easting", "user_northing", "user_coordinate_system", "locality_accuracy",
+    "in_mark_config_material", "in_mark_config_form", "in_mark_config_fixing", "in_mark_config_uncertainty",
+    "in_mark_config_left_tibia", "in_mark_config_left_tarsus", "in_mark_config_right_tibia", "in_mark_config_right_tarsus",
+    "in_mark_config_other_mark_type", "in_mark_config_other_mark_alpha", 
+    "out_mark_config_material", "out_mark_config_form", "out_mark_config_fixing", "out_mark_config_uncertainty", 
+    "out_mark_config_left_tibia", "out_mark_config_left_tarsus", "out_mark_config_right_tibia", 
+    "out_mark_config_right_tarsus", "out_mark_config_other_mark_type", "out_mark_config_other_mark_alpha",
+    "in_characteristic_status_code", "in_characteristic_condition_code", 
+    "out_characteristic_status_code", "out_characteristic_condition_code", 
+    "characteristic_status_detail_1_code", "characteristic_status_detail_2_code", 
+    "info_notes", "info_sent_date", "info_moratorium",
+    "characteristic_moult_p1", "characteristic_moult_p2", "characteristic_moult_p3", "characteristic_moult_p4", "characteristic_moult_p5",
+    "characteristic_moult_p6", "characteristic_moult_p7", "characteristic_moult_p8", "characteristic_moult_p9", "characteristic_moult_p10",
+    "info_moult_notes", 
+    "characteristic_detail_1", "characteristic_units_1", "characteristic_value_1", 
+    "characteristic_detail_2", "characteristic_units_2", "characteristic_value_2",
+    "characteristic_detail_3", "characteristic_units_3", "characteristic_value_3",
+    "characteristic_detail_4", "characteristic_units_4", "characteristic_value_4", 
+    "characteristic_detail_5", "characteristic_units_5", "characteristic_value_5",
+    "characteristic_detail_6", "characteristic_units_6", "characteristic_value_6",
+    "characteristic_detail_7", "characteristic_units_7", "characteristic_value_7",
+    "characteristic_detail_8", "characteristic_units_8", "characteristic_value_8",
+    "characteristic_detail_9", "characteristic_units_9", "characteristic_value_9",
+    "characteristic_detail_10", "characteristic_units_10", "characteristic_value_10",
+    "info_other_detail_10", "info_other_units_10", "info_other_value_10"
+  ],
+  "ordered_ss_property_array": [
+    "Prefix", "Number", "Date", "Date Accuracy", "Banding_scheme", "L3_number", "L3_name", "Bander_number", "Bander_name",
+    "Other_name", "Other_contact", "NZNBBS_code", "Lookup_Code", "Stock_code", "Event_code", "Capture_code", "Wild Captive",
+    "Common_name", "Scientific_name", "Species_code", "Age", "Sex", "Region_Code", "Locality_general", "Locality_description",
+    "Latitude", "Longitude", "Easting", "Northing", "Coordinate system", "Locality_accuracy",
+    "Colour_band_material_1", "Colour_band_type_1", "Colour_band_fixing_type_1", "Mark_uncertainty_1", "Left_tibia_1", 
+    "Left_tarsus_1", "Right_tibia_1", "Right_tarsus_1", "Non_leg_mark_type_1", "Non_leg_mark_id_1",
+    "Colour_band_material_2", "Colour_band_type_2", "Colour_band_fixing_type_2", "Mark_uncertainty_2", "Left_tibia_2", 
+    "Left_tarsus_2", "Right_tibia_2", "Right_tarsus_2", "Non_leg_mark_type_2", "Non_leg_mark_id_2",
+    "Status_code_1", "Condition_1", "Status_code_2", "Condition_2", "Status_detail1", "Status_detail2",
+    "Notes", "Sent_date", "Moratorium", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10",
+    "Moult_notes", 
+    "Detail1", "Units1", "Data1",
+    "Detail2", "Units2", "Data2",
+    "Detail3", "Units3", "Data3",
+    "Detail4", "Units4", "Data4",
+    "Detail5", "Units5", "Data5",
+    "Detail6", "Units6", "Data6",
+    "Detail7", "Units7", "Data7",
+    "Detail8", "Units8", "Data8",
+    "Detail9", "Units9", "Data9",
+    "Detail10", "Units10", "Data10",
+    "OtherDetail1", "OtherDetailUnit1", "OtherDetailData1",
+    "Project_Name", "Species_Group"
+  ],
+  "properties": {
+    "prefix_number": "Prefix",
+    "short_number": "Number",
+    "event_timestamp": "Date",
+    "event_timestamp_accuracy": "Date Accuracy",
+    "event_banding_scheme": "Banding_scheme",
+    "event_provider_number": "L3_number",
+    "info_event_provider_name": "L3_name",
+    "event_reporter_number": "Bander_number",
+    "info_event_reporter_name": "Bander_name",
+    "info_other_name": "Other_name",
+    "info_other_contact": "Other_contact",
+    "info_nznbbs_code": "NZNBBS_code",
+    "info_lookup_code": "Lookup_Code",
+    "mark_state_code": "Stock_code",
+    "event_type": "Event_code",
+    "event_capture_type": "Capture_code",
+    "event_bird_situation": "Wild Captive",
+    "info_species_common_name": "Common_name",
+    "info_species_scientific_name": "Scientific_name",
+    "species_code": "Species_code",
+    "characteristic_age": "Age",
+    "characteristic_sex": "Sex",
+    "location_comment": "Region_Code",
+    "locality_general": "Locality_general",
+    "location_description": "Locality_description",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "user_easting": "Easting",
+    "user_northing": "Northing",
+    "user_coordinate_system": "Coordinate system",
+    "locality_accuracy": "Locality_accuracy",
+    "in_mark_config_material": "Colour_band_material_1",
+    "in_mark_config_form": "Colour_band_type_1",
+    "in_mark_config_fixing": "Colour_band_fixing_type_1",
+    "in_mark_config_uncertainty": "Mark_uncertainty_1",
+    "in_mark_config_left_tibia": "Left_tibia_1",
+    "in_mark_config_left_tarsus": "Left_tarsus_1",
+    "in_mark_config_right_tibia": "Right_tibia_1",
+    "in_mark_config_right_tarsus": "Right_tarsus_1",
+    "in_mark_config_other_mark_type": "Non_leg_mark_type_1",
+    "in_mark_config_other_mark_alpha": "Non_leg_mark_id_1",
+    "out_mark_config_material": "Colour_band_material_2",
+    "out_mark_config_form": "Colour_band_type_2",
+    "out_mark_config_fixing": "Colour_band_fixing_type_2",
+    "out_mark_config_uncertainty": "Mark_uncertainty_2",
+    "out_mark_config_left_tibia": "Left_tibia_2",
+    "out_mark_config_left_tarsus": "Left_tarsus_2",
+    "out_mark_config_right_tibia": "Right_tibia_2",
+    "out_mark_config_right_tarsus": "Right_tarsus_2",
+    "out_mark_config_other_mark_type": "Non_leg_mark_type_2",
+    "out_mark_config_other_mark_alpha": "Non_leg_mark_id_2",
+    "in_characteristic_status_code": "Status_code_1",
+    "in_characteristic_condition_code": "Condition_1",
+    "out_characteristic_status_code": "Status_code_2",
+    "out_characteristic_condition_code": "Condition_2", 
+    "characteristic_status_detail_1_code": "Status_detail1",
+    "characteristic_status_detail_2_code": "Status_detail2",
+    "info_notes": "Notes",
+    "info_sent_date": "Sent_date",
+    "info_moratorium": "Moratorium",
+    "characteristic_moult_p1": "P1",
+    "characteristic_moult_p2": "P2",
+    "characteristic_moult_p3": "P3",
+    "characteristic_moult_p4": "P4",
+    "characteristic_moult_p5": "P5",
+    "characteristic_moult_p6": "P6",
+    "characteristic_moult_p7": "P7",
+    "characteristic_moult_p8": "P8",
+    "characteristic_moult_p9": "P9",
+    "characteristic_moult_p10": "P10",
+    "info_moult_notes": "Moult_notes",
+    "characteristic_detail_1": "Detail1",
+    "characteristic_units_1": "Units1",
+    "characteristic_value_1": "Data1",
+    "characteristic_detail_2": "Detail2",
+    "characteristic_units_2": "Units2",
+    "characteristic_value_2": "Data2",
+    "characteristic_detail_3": "Detail3",
+    "characteristic_units_3": "Units3",
+    "characteristic_value_3": "Data3",
+    "characteristic_detail_4": "Detail4",
+    "characteristic_units_4": "Units4",
+    "characteristic_value_4": "Data4",
+    "characteristic_detail_5": "Detail5",
+    "characteristic_units_5": "Units5",
+    "characteristic_value_5": "Data5",
+    "characteristic_detail_6": "Detail6",
+    "characteristic_units_6": "Units6",
+    "characteristic_value_6": "Data6",
+    "characteristic_detail_7": "Detail7",
+    "characteristic_units_7": "Units7",
+    "characteristic_value_7": "Data7",
+    "characteristic_detail_8": "Detail8",
+    "characteristic_units_8": "Units8",
+    "characteristic_value_8": "Data8",
+    "characteristic_detail_9": "Detail9",
+    "characteristic_units_9": "Units9",
+    "characteristic_value_9": "Data9",
+    "characteristic_detail_10": "Detail10",
+    "characteristic_units_10": "Units10",
+    "characteristic_value_10": "Data10",
+    "info_other_detail_10": "OtherDetail1",
+    "info_other_units_10": "OtherDetailUnit1",
+    "info_other_value_10": "OtherDetailData1"
+  },
+  "backTranslationProperties": {
+    "raw_species_code_nznbbs": {
+      "ss_col": "Species_code"
+    },
+    "raw_species_scientific_name": {
+      "ss_col": "Scientific_name"
+    },
+    "raw_species_common_name": {
+      "ss_col": "Common_name"
+    },
+    "project_id": null,
+    "event_type": {
+      "ss_col": "Event_code"
+    },
+    "event_state": null,
+    "event_banding_scheme": {
+      "ss_col": "Banding_scheme"
+    },
+    "event_timestamp": {
+      "ss_col": "Date"
+    },
+    "event_timestamp_accuracy": {
+      "ss_col": "Date Accuracy"
+    },
+    "event_capture_type": {
+      "ss_col": "Capture_code"
+    },
+    "event_bird_situation": {
+      "ss_col": "Wild Captive"
+    },
+    "raw_event_reporter_nznbbs_certification_number": {
+      "ss_col": "Bander_number"
+    },
+    "raw_event_reporter_name": {
+      "ss_col": "Bander_name"
+    },
+    "raw_event_provider_nznbbs_certification_number": {
+      "ss_col": "L3_number"
+    },
+    "raw_event_provider_name": {
+      "ss_col": "L3_name"
+    },
+    "event_other_person_name": {
+      "ss_col": "Other_name"
+    },
+    "event_other_contact": {
+      "ss_col": "Other_contact"
+    },
+    "latitude": {
+      "ss_col": "Latitude"
+    },
+    "longitude": {
+      "ss_col": "Longitude"
+    },
+    "location_description": {
+      "ss_col": "Locality_description"
+    },
+    "location_comment": {
+      "ss_col": "Region_code"
+    },
+    "locality_general": {
+      "ss_col": "Locality_general"
+    },
+    "locality_accuracy": {
+      "ss_col": "Locality_accuracy"
+    },
+    "user_northing": {
+      "ss_col": "Northing"
+    },
+    "user_easting": {
+      "ss_col": "Easting"
+    },
+    "user_coordinate_system": {
+      "ss_col": "Coordinate system"
+    },
+    "raw_characteristic_name": {
+      "ss_col": "Ancillary Data: Detail"
+    },
+    "raw_value": {
+      "ss_col": "Ancillary Data: Data"
+    },
+    "raw_units": {
+      "ss_col": "Ancillary Data: Units"
+    },
+    "side": null,
+    "position": null,
+    "location_idx": null,
+    "mark_type": null,
+    "mark_form": {
+      "ss_col": "Colour_band_type"
+    },
+    "mark_material": {
+      "ss_col": "Colour_band_material"
+    },
+    "mark_fixing": {
+      "ss_col": "Colour_band_fixing_type"
+    },
+    "colour": {
+      "ss_col": "[Left_tibia,Left_tarsus,Right_tibia,Right_tarsus]"
+    },
+    "text_colour": {
+      "ss_col": "[Left_tibia,Left_tarsus,Right_tibia,Right_tarsus]"
+    },
+    "alphanumeric_text": {
+      "ss_col": "[Left_tibia,Left_tarsus,Right_tibia,Right_tarsus,Non_leg_mark_id]"
+    }
+  },
+  "col_mapping": {
+    "prefix_number": "A",
+    "short_number": "B",
+    "event_timestamp": "C",
+    "event_timestamp_accuracy": "D",
+    "event_banding_scheme": "E",
+    "event_provider_id": "F",
+    "event_provider_number": "F",
+    "info_event_provider_name": "G",
+    "event_reporter_id": "H",
+    "event_reporter_number": "H",
+    "info_event_reporter_name": "I",
+    "info_other_name": "J",
+    "info_other_contact": "K",
+    "info_nznbbs_code": "L",
+    "info_lookup_code": "M",
+    "mark_state_code": "N",
+    "mark_state_state": "N",
+    "event_type": "O",
+    "event_capture_type": "P",
+    "event_bird_situation": "Q",
+    "species_code": "R",
+    "info_species_scientific_name": "S",
+    "info_species_common_name": "T",
+    "location_comment": "U",
+    "locality_general": "V",
+    "location_description": "W",
+    "latitude": "X",
+    "longitude": "Y",
+    "user_easting": "Z",
+    "user_northing": "AA",
+    "user_coordinate_system": "AB",
+    "locality_accuracy": "AC",
+    "in_mark_config_material": "AD",
+    "in_mark_config_form": "AE",
+    "in_mark_config_fixing": "AF",
+    "in_mark_config_uncertainty": "AG",
+    "in_mark_config_left_tibia": "AH",
+    "in_mark_config_left_tarsus": "AI",
+    "in_mark_config_right_tibia": "AJ",
+    "in_mark_config_right_tarsus": "AK",
+    "in_mark_config_other_mark_type": "AL",
+    "in_mark_config_other_mark_alpha": "AM",
+    "out_mark_config_material": "AN",
+    "out_mark_config_form": "AO",
+    "out_mark_config_fixing": "AP",
+    "out_mark_config_uncertainty": "AQ",
+    "out_mark_config_left_tibia": "AR",
+    "out_mark_config_left_tarsus": "AS",
+    "out_mark_config_right_tibia": "AT",
+    "out_mark_config_right_tarsus": "AU",
+    "out_mark_config_other_mark_type": "AV",
+    "out_mark_config_other_mark_alpha": "AW",
+    "characteristic_age": "AX",
+    "characteristic_sex": "AY",
+    "in_characteristic_status_code": "AZ",
+    "in_characteristic_condition_code": "BA",
+    "out_characteristic_status_code": "BB",
+    "out_characteristic_condition_code": "BC", 
+    "characteristic_status_detail_1_code": "BD",
+    "characteristic_status_detail_2_code": "BE",
+    "info_notes": "BF",
+    "info_sent_date": "BG",
+    "info_moratorium": "BH",
+    "characteristic_moult_p1": "BI",
+    "characteristic_moult_p2": "BJ",
+    "characteristic_moult_p3": "BK",
+    "characteristic_moult_p4": "BL",
+    "characteristic_moult_p5": "BM",
+    "characteristic_moult_p6": "BN",
+    "characteristic_moult_p7": "BO",
+    "characteristic_moult_p8": "BP",
+    "characteristic_moult_p9": "BQ",
+    "characteristic_moult_p10": "BR",
+    "info_moult_notes": "BS",
+    "characteristic_detail_1": "BT",
+    "characteristic_units_1": "BU",
+    "characteristic_value_1": "BV",
+    "characteristic_measurements_value_0": "BV",
+    "characteristic_detail_2": "BW",
+    "characteristic_units_2": "BX",
+    "characteristic_value_2": "BY",
+    "characteristic_measurements_value_1": "BY",
+    "characteristic_detail_3": "BZ",
+    "characteristic_units_3": "CA",
+    "characteristic_value_3": "CB",
+    "characteristic_measurements_value_2": "CB",
+    "characteristic_detail_4": "CC",
+    "characteristic_units_4": "CD",
+    "characteristic_value_4": "CE",
+    "characteristic_measurements_value_3": "CE",
+    "characteristic_detail_5": "CF",
+    "characteristic_units_5": "CG",
+    "characteristic_value_5": "CH",
+    "characteristic_measurements_value_4": "CH",
+    "characteristic_detail_6": "CI",
+    "characteristic_units_6": "CJ",
+    "characteristic_value_6": "CK",
+    "characteristic_measurements_value_5": "CK",
+    "characteristic_detail_7": "CL",
+    "characteristic_units_7": "CM",
+    "characteristic_value_7": "CN",
+    "characteristic_measurements_value_6": "CN",
+    "characteristic_detail_8": "CO",
+    "characteristic_units_8": "CP",
+    "characteristic_value_8": "CQ",
+    "characteristic_measurements_value_7": "CQ",
+    "characteristic_detail_9": "CR",
+    "characteristic_units_9": "CS",
+    "characteristic_value_9": "CT",
+    "characteristic_measurements_value_8": "CT",
+    "characteristic_detail_10": "CU",
+    "characteristic_units_10": "CV",
+    "characteristic_value_10": "CW",
+    "characteristic_measurements_value_9": "CX",
+    "info_other_detail_10": "CX",
+    "info_other_units_10": "CY",
+    "info_other_value_10": "CZ"
+  }
+}

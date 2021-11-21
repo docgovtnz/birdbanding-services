@@ -1,0 +1,1876 @@
+{
+	"info": {
+		"_postman_id": "78749229-0071-4d0c-91ed-d3be4f645341",
+		"name": "cicd.example.org",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "banders/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"pm.test(\"Response contains a non-empty list \",function(){\r",
+							"   var jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.length).to.not.eql(0);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/banders",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"banders"
+					]
+				},
+				"description": "Tests a GET method against the characteristics resource."
+			},
+			"response": []
+		},
+		{
+			"name": "banders/id/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"//var banderIdSent: Done to improve the readability of the test name",
+							"var banderIdSent =pm.environment.get(\"bander-id-valid\");",
+							"",
+							"pm.test(\"Id \"+banderIdSent+\" is present in  response\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('id');",
+							"    pm.expect(jsonData.id).is.to.equal(banderIdSent);",
+							"    ",
+							"});",
+							"",
+							"//Choose whether the static schema in the pre-request set up is used or a live schema that is loaded from the responses in the get all schemas test folder",
+							"var schema = pm.environment.get(\"schema-for-validation\");",
+							"pm.test(\"The response JSON conforms to the schema\", function(){",
+							"    pm.response.to.have.jsonSchema(schema);",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							" const schema = {",
+							" \"banderPayload\": [",
+							"        {",
+							"            \"description\": \"A schema describing for validating incoming bander payloads for birdbanding service API calls\",",
+							"            \"title\": \"Birdbanding - API Payload - Bander\",",
+							"            \"required\": [",
+							"                \"username\",",
+							"                \"email\",",
+							"                \"name\",",
+							"                \"given_name\",",
+							"                \"family_name\",",
+							"                \"nznbbs_certification_number\",",
+							"                \"is_hidden\",",
+							"                \"bander_state\"",
+							"            ],",
+							"            \"properties\": {",
+							"                \"username\": {",
+							"                    \"$ref\": \"#/definitions/noWhitespaceString\"",
+							"                },",
+							"                \"family_name\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedString\"",
+							"                },",
+							"                \"row_creation_timestamp_\": {",
+							"                    \"$ref\": \"#/definitions/iso8601DatetimeString\"",
+							"                },",
+							"                \"name\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedString\"",
+							"                },",
+							"                \"email_verified\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedBoolString\"",
+							"                },",
+							"                \"bander_state\": {",
+							"                    \"$ref\": \"#/definitions/banderStateEnum\"",
+							"                },",
+							"                \"email\": {",
+							"                    \"$ref\": \"#/definitions/emailString\"",
+							"                },",
+							"                \"row_creation_idx\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedInt\"",
+							"                },",
+							"                \"row_update_timestamp_\": {",
+							"                    \"$ref\": \"#/definitions/iso8601DatetimeStringNullable\"",
+							"                },",
+							"                \"given_name\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedString\"",
+							"                },",
+							"                \"address\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedNullableString\"",
+							"                },",
+							"                \"is_hidden\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedBool\"",
+							"                },",
+							"                \"primary_organisation\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedNullableString\"",
+							"                },",
+							"                \"phone_number\": {",
+							"                    \"$ref\": \"#/definitions/unspecifiedNullablePhoneNumber\"",
+							"                },",
+							"                \"id\": {",
+							"                    \"$ref\": \"#/definitions/uuidv4String\"",
+							"                },",
+							"                \"nznbbs_certification_number\": {",
+							"                    \"$ref\": \"#/definitions/nznbbsCertificationNumberStringNullable\"",
+							"                }",
+							"            },",
+							"            \"definitions\": {",
+							"                \"iso8601TimeString\": {",
+							"                    \"type\": \"string\",",
+							"                    \"format\": \"time\"",
+							"                },",
+							"                \"unspecifiedBool\": {",
+							"                    \"type\": \"boolean\"",
+							"                },",
+							"                \"noWhitespaceString\": {",
+							"                    \"pattern\": \"^\\\\S+$\",",
+							"                    \"type\": \"string\"",
+							"                },",
+							"                \"unspecifiedStringLong\": {",
+							"                    \"minLength\": 0,",
+							"                    \"type\": \"string\",",
+							"                    \"maxLength\": 2500",
+							"                },",
+							"                \"unspecifiedNullableStringShort\": {",
+							"                    \"minLength\": 0,",
+							"                    \"type\": [",
+							"                        \"string\",",
+							"                        \"null\"",
+							"                    ],",
+							"                    \"maxLength\": 200",
+							"                },",
+							"                \"iso8601DatetimeStringNullable\": {",
+							"                    \"type\": [",
+							"                        \"string\",",
+							"                        \"null\"",
+							"                    ],",
+							"                    \"format\": \"date-time\"",
+							"                },",
+							"                \"unspecifiedInt\": {",
+							"                    \"type\": \"integer\"",
+							"                },",
+							"                \"unspecifiedString\": {",
+							"                    \"type\": \"string\"",
+							"                },",
+							"                \"emailString\": {",
+							"                    \"type\": \"string\",",
+							"                    \"format\": \"email\"",
+							"                },",
+							"                \"nznbbsCertificationNumberStringNullable\": {",
+							"                    \"pattern\": \"^(ORG|H){0,1}[0-9]+$\",",
+							"                    \"type\": [",
+							"                        \"string\",",
+							"                        \"null\"",
+							"                    ]",
+							"                },",
+							"                \"unspecifiedStringShort\": {",
+							"                    \"minLength\": 0,",
+							"                    \"type\": \"string\",",
+							"                    \"maxLength\": 200",
+							"                },",
+							"                \"banderStateEnum\": {",
+							"                    \"enum\": [",
+							"                        \"LOCKED\",",
+							"                        \"ACTIVE\",",
+							"                        \"SUSPENDED\"",
+							"                    ],",
+							"                    \"type\": \"string\"",
+							"                },",
+							"                \"unspecifiedNullableString\": {",
+							"                    \"type\": [",
+							"                        \"string\",",
+							"                        \"null\"",
+							"                    ]",
+							"                },",
+							"                \"md5String\": {",
+							"                    \"pattern\": \"^[a-f0-9]{32}$\",",
+							"                    \"type\": \"string\"",
+							"                },",
+							"                \"unspecifiedNullableStringLong\": {",
+							"                    \"minLength\": 0,",
+							"                    \"type\": [",
+							"                        \"string\",",
+							"                        \"null\"",
+							"                    ],",
+							"                    \"maxLength\": 2500",
+							"                },",
+							"                \"uuidv4String\": {",
+							"                    \"pattern\": \"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$\",",
+							"                    \"type\": \"string\"",
+							"                },",
+							"                \"iso8601DatetimeString\": {",
+							"                    \"type\": \"string\",",
+							"                    \"format\": \"date-time\"",
+							"                },",
+							"                \"unspecifiedNullablePhoneNumber\": {",
+							"                    \"anyOf\": [",
+							"                        {",
+							"                            \"pattern\": \"^\\\\+[0-9]+$\",",
+							"                            \"type\": [",
+							"                                \"string\",",
+							"                                \"null\"",
+							"                            ]",
+							"                        },",
+							"                        {",
+							"                            \"type\": \"string\",",
+							"                            \"maxLength\": 0",
+							"                        }",
+							"                    ]",
+							"                },",
+							"                \"intString\": {",
+							"                    \"pattern\": \"^\\\\d+$\",",
+							"                    \"type\": \"string\"",
+							"                },",
+							"                \"iso8601DateString\": {",
+							"                    \"type\": \"string\",",
+							"                    \"format\": \"date\"",
+							"                },",
+							"                \"unspecifiedBoolString\": {",
+							"                    \"enum\": [",
+							"                        \"true\",",
+							"                        \"false\"",
+							"                    ],",
+							"                    \"type\": \"string\"",
+							"                }",
+							"            },",
+							"            \"$schema\": \"http://json-schema.org/draft-07/schema#\",",
+							"            \"type\": \"object\",",
+							"            \"id\": \"/birdbanding/api/payload/bander\",",
+							"            \"version\": 1",
+							"        }",
+							"    ],};",
+							"    ",
+							"    pm.environment.set(\"schema-for-validation\", schema);",
+							"",
+							"",
+							"",
+							"",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/banders/{{bander-id-valid}}",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"banders",
+						"{{bander-id-valid}}"
+					]
+				},
+				"description": "Tests a GET method against the characteristics resource."
+			},
+			"response": []
+		},
+		{
+			"name": "banders-certifications/get/id/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});//var banderIdSent: Done to improve the readability of the test name",
+							"var banderIdSent =pm.environment.get(\"bander-id-valid\");",
+							"",
+							"pm.test(\"Response contains Bander id: \"+banderIdSent, function () {",
+							"    pm.expect(pm.response.text()).to.include(banderIdSent);",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Cache-Control",
+						"value": "max-age=0",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/banders/{{bander-id-valid}}/bander-certifications",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"banders",
+						"{{bander-id-valid}}",
+						"bander-certifications"
+					]
+				},
+				"description": "Tests a GET method against the characteristics resource."
+			},
+			"response": []
+		},
+		{
+			"name": "birds/id/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"//var birdIdSent: Done to improve the readability of the test name\r",
+							"var birdIdSent =pm.environment.get(\"bird-id-valid\");\r",
+							"\r",
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"\r",
+							"pm.test(\"Id \"+birdIdSent+\" is present in  response\", function () {\r",
+							"    var jsonData = pm.response.json();\r",
+							"   pm.expect(jsonData.bird).to.have.property('id');\r",
+							"    pm.expect(jsonData.bird.id).is.to.equal(birdIdSent);\r",
+							"    \r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/birds/{{bird-id-valid}}",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"birds",
+						"{{bird-id-valid}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "characteristics/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response contains a non-empty list \",function(){",
+							"   var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.length).to.not.eql(0);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "x-api-key",
+						"value": "{{api-key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/characteristics",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"characteristics"
+					]
+				},
+				"description": "Tests a GET method against the characteristics resource."
+			},
+			"response": []
+		},
+		{
+			"name": "projects/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"//var knownProjectId: Done to improve the readability of the test name",
+							"var knownProjectId = pm.environment.get(\"project-id-valid\");",
+							"",
+							"pm.test(\"Response contains a known project: \" + knownProjectId, function() {",
+							"    pm.expect(pm.response.text()).to.include(knownProjectId);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/projects",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"projects"
+					]
+				},
+				"description": "Tests a GET method against the characteristics resource."
+			},
+			"response": []
+		},
+		{
+			"name": "projects/id/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"//var projectIdSent: Done to improve the readability of the test name",
+							"var projectIdSent =pm.environment.get(\"project-id-valid\");",
+							"",
+							"pm.test(\"Id \"+projectIdSent+\" is present in  response\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('id');",
+							"    pm.expect(jsonData.id).is.to.equal(projectIdSent);",
+							"    ",
+							"});",
+							"",
+							"//Choose whether the static schema in the pre-request set up is used or a live schema that is loaded from the responses in the get all schemas test folder",
+							"var schema = pm.environment.get(\"schema-for-validation\");",
+							"pm.test(\"The response JSON conforms to the schema\", function(){",
+							"    pm.response.to.have.jsonSchema(schema);",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const schema = {",
+							"  \"$schema\": \"http://json-schema.org/draft-07/schema#\",",
+							"  \"description\": \"A schema describing for validating incoming project payloads for birdbanding service API calls\",",
+							"  \"id\": \"/birdbanding/api/payload/project\",",
+							"  \"title\": \"Birdbanding - API Payload - Project\",",
+							"  \"definitions\": {",
+							"    \"unspecifiedString\": {",
+							"      \"type\": \"string\"",
+							"    },",
+							"    \"unspecifiedNullableString\": {",
+							"      \"type\": [\"string\", \"null\"]",
+							"    },",
+							"    \"unspecifiedStringShort\": {",
+							"      \"type\": \"string\",",
+							"      \"minLength\": 0,",
+							"      \"maxLength\": 200",
+							"    },",
+							"    \"unspecifiedNullableStringShort\": {",
+							"      \"type\": [\"string\", \"null\"],",
+							"      \"minLength\": 0,",
+							"      \"maxLength\": 200",
+							"    },",
+							"    \"unspecifiedStringLong\": {",
+							"      \"type\": \"string\",",
+							"      \"minLength\": 0,",
+							"      \"maxLength\": 2500",
+							"    },",
+							"    \"unspecifiedNullableStringLong\": {",
+							"      \"type\": [\"string\", \"null\"],",
+							"      \"minLength\": 0,",
+							"      \"maxLength\": 2500",
+							"    },",
+							"    \"unspecifiedInt\": {",
+							"      \"type\": \"integer\"",
+							"    },",
+							"    \"unspecifiedBool\": {",
+							"      \"type\": \"boolean\"",
+							"    },",
+							"    \"unspecifiedBoolString\": {",
+							"      \"type\": \"string\",",
+							"      \"enum\": [\"true\",\"false\"]",
+							"    },",
+							"    \"uuidv4String\": {",
+							"    \"type\": \"string\",",
+							"    \"pattern\": \"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$\"",
+							"    },",
+							"    \"intString\": {",
+							"      \"type\": \"string\",",
+							"      \"pattern\": \"^\\\\d+$\"",
+							"      },",
+							"    \"md5String\": {",
+							"      \"type\": \"string\",",
+							"      \"pattern\": \"^[a-f0-9]{32}$\"",
+							"      },",
+							"    \"iso8601DatetimeString\": {",
+							"      \"type\": \"string\",",
+							"      \"format\": \"date-time\"",
+							"      }, ",
+							"    \"iso8601DatetimeStringNullable\": {",
+							"      \"type\": [\"string\", \"null\"],",
+							"      \"format\": \"date-time\"",
+							"      }, ",
+							"    \"iso8601DateString\": {",
+							"      \"type\": \"string\",",
+							"      \"format\": \"date\"",
+							"      }, ",
+							"    \"iso8601TimeString\": {",
+							"      \"type\": \"string\",",
+							"      \"format\": \"time\"",
+							"      },",
+							"      \"nznbbsCertificationNumberStringNullable\": {",
+							"      \"type\": [\"string\", \"null\"],",
+							"      \"pattern\": \"^(ORG|H){0,1}[0-9]+$\"",
+							"    },",
+							"    \"projectState\": {",
+							"      \"type\": \"string\",",
+							"      \"enum\": [\"AWAITING_APPROVAL\", \"INACTIVE\", \"ACTIVE\"]",
+							"    }",
+							"  },",
+							"  \"type\": \"object\",   ",
+							"  \"properties\": {",
+							"    \"project_state\": { \"$ref\": \"#/definitions/projectState\" },",
+							"    \"name\": { \"$ref\": \"#/definitions/unspecifiedStringShort\" },",
+							"    \"description\": { \"$ref\": \"#/definitions/unspecifiedNullableStringLong\" },",
+							"    \"default_moratorium_expiry\": { \"$ref\": \"#/definitions/iso8601DatetimeStringNullable\" },",
+							"    \"organisation\": { \"$ref\": \"#/definitions/unspecifiedNullableStringShort\" },",
+							"    \"coordinator_id\": { \"$ref\": \"#/definitions/uuidv4String\" },",
+							"    \"is_doc_project\": { \"$ref\": \"#/definitions/unspecifiedBool\" },",
+							"    \"location\": { \"$ref\": \"#/definitions/unspecifiedNullableStringLong\" },",
+							"    \"permit_id\": { \"$ref\": \"#/definitions/unspecifiedNullableStringShort\" },",
+							"    \"permit_expiry\": { \"$ref\": \"#/definitions/iso8601DatetimeStringNullable\" }",
+							"  },",
+							"  \"required\": [\"name\", \"description\", \"default_moratorium_expiry\",",
+							"        \"organisation\", \"coordinator_id\", \"is_doc_project\", \"location\", \"permit_id\", \"permit_expiry\"]",
+							"};",
+							"",
+							"",
+							"pm.environment.set(\"schema-for-validation\", schema);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/projects/{{project-id-valid}}",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"projects",
+						"{{project-id-valid}}"
+					]
+				},
+				"description": "Tests a GET method against the characteristics resource."
+			},
+			"response": []
+		},
+		{
+			"name": "enums/id/get/valid/cicd-viewData",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Check if object contains all provided keys\", function () {",
+							"    var jsonData = pm.response.json();",
+							"     pm.expect(jsonData).to.have.all.keys(\"EVENT_CODE\", \"EVENT_CODE_BIRD\", \"EVENT_BANDING_SCHEME\", \"MARK_TYPE\")",
+							"});",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"type": "text",
+						"value": "{{api-key}}"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/enums/viewData",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"enums",
+						"viewData"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "enums/id/get/valid/cicd-managePeople",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Check if object contains all provided keys\", function () {",
+							"    var jsonData = pm.response.json();",
+							"     pm.expect(jsonData).to.have.all.keys(\"BANDER_COMPETENCY_LEVEL\",\"BANDER_STATE\",\"BANDER_STATE_FROM_ADMIN\",\"BANDER_ENDORSEMENT\")",
+							"});",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"type": "text",
+						"value": "{{api-key}}"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/enums/managePeople",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"enums",
+						"managePeople"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "enums/id/get/valid/cicd-viewProjects",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Check if object contains all provided keys\", function () {",
+							"    var jsonData = pm.response.json();",
+							"     pm.expect(jsonData).to.have.all.keys(\"PROJECT_STATE\")",
+							"});",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"type": "text",
+						"value": "{{api-key}}"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/enums/viewProjects",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"enums",
+						"viewProjects"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "enums/id/get/valid/cicd-manageStock",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const expectedResponse =",
+							"{",
+							"    \"PREFIX_NUMBERS\": [",
+							"        \"12\",",
+							"        \"13\",",
+							"        \"17\",",
+							"        \"19\",",
+							"        \"23\",",
+							"        \"27\",",
+							"        \"a\",",
+							"        \"aa\",",
+							"        \"ae\",",
+							"        \"ap\",",
+							"        \"ax\",",
+							"        \"b\",",
+							"        \"bp\",",
+							"        \"c\",",
+							"        \"cp\",",
+							"        \"cx\",",
+							"        \"d\",",
+							"        \"dp\",",
+							"        \"e\",",
+							"        \"h\",",
+							"        \"j\",",
+							"        \"k\",",
+							"        \"ka\",",
+							"        \"l\",",
+							"        \"ln\",",
+							"        \"lnc\",",
+							"        \"m\",",
+							"        \"o\",",
+							"        \"p\",",
+							"        \"pa\",",
+							"        \"r\",",
+							"        \"ra\",",
+							"        \"rc\",",
+							"        \"rh\",",
+							"        \"s\",",
+							"        \"sn\",",
+							"        \"t\",",
+							"        \"v\",",
+							"        \"w\",",
+							"        \"web\",",
+							"        \"x\",",
+							"        \"y\",",
+							"        \"yp\",",
+							"        \"z\"",
+							"    ],",
+							"    \"MARK_STATUS_SEARCH\": [",
+							"        \"ALLOCATED\",",
+							"        \"ATTACHED\",",
+							"        \"DETACHED\",",
+							"        \"LOST\",",
+							"        \"NEW\",",
+							"        \"OTHER\",",
+							"        \"PRACTICE\",",
+							"        \"RETURNED_USED\"",
+							"    ],",
+							"    \"MARK_STATUS_CAN_TRANSFER\": [",
+							"        \"ALLOCATED\",",
+							"        \"NEW\",",
+							"        \"RETURNED\"",
+							"    ],",
+							"    \"MARK_STATUS_FROM_NEW\": [",
+							"        \"LOST\"",
+							"    ],",
+							"    \"MARK_STATUS_FROM_ALLOCATED\": [",
+							"        \"LOST\",",
+							"        \"PRACTICE\"",
+							"    ],",
+							"    \"MARK_STATUS_FROM_RETURNED\": [",
+							"        \"LOST\"",
+							"    ],",
+							"    \"MARK_STATUS_FROM_LOST\": [",
+							"        \"ALLOCATED\",",
+							"        \"RETURNED_USED\"",
+							"    ],",
+							"    \"MARK_STATUS_FROM_ATTACHED\": [],",
+							"    \"MARK_STATUS_FROM_DETACHED\": [",
+							"        \"RETURNED_USED\"",
+							"    ],",
+							"    \"MARK_STATUS_FROM_PRACTICE\": [",
+							"        \"LOST\",",
+							"        \"RETURNED_USED\"",
+							"    ],",
+							"    \"MARK_STATUS_FROM_RETURNED_USED\": [],",
+							"    \"MARK_STATUS_FROM_OTHER\": [],",
+							"    \"MARK_STATUS_CAN_DELETE\": [",
+							"        \"NEW\"",
+							"    ]",
+							"};",
+							"",
+							"pm.environment.set(\"expectedResponse\",expectedResponse);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Check if object contains all provided keys\", function () {",
+							"    var jsonData = pm.response.json();",
+							"     pm.expect(jsonData).to.have.all.keys(\"PREFIX_NUMBERS\", \"MARK_STATUS_SEARCH\",\"MARK_STATUS_CAN_TRANSFER\",\"MARK_STATUS_FROM_NEW\",\"MARK_STATUS_FROM_ALLOCATED\",\"MARK_STATUS_FROM_RETURNED\",\"MARK_STATUS_FROM_LOST\",\"MARK_STATUS_FROM_ATTACHED\",\"MARK_STATUS_FROM_DETACHED\",\"MARK_STATUS_FROM_PRACTICE\",\"MARK_STATUS_FROM_RETURNED_USED\",\"MARK_STATUS_FROM_OTHER\",\"MARK_STATUS_CAN_DELETE\")",
+							"});",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"type": "text",
+						"value": "{{api-key}}"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/enums/manageStock",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"enums",
+						"manageStock"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "enums/id/get/valid/cicd-dataUpload",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Check if object contains all provided keys\", function () {",
+							"    var jsonData = pm.response.json();",
+							"     pm.expect(jsonData).to.have.all.keys(\"REGION\", \"EVENT_TYPE_BIRD_DISPLAY\",\"EVENT_TYPE_BIRD\", \"EVENT_TYPE_BIRD_FIRST_MARKING\", \"EVENT_TYPE_BIRD_REMARKING\", \"EVENT_TYPE_BIRD_RESIGHTING_RECOVERY\", \"EVENT_TYPE\", \"WILD_CAPTIVE\", \"CAPTURE_CODE\", \"STATUS_CODE\",\"CONDITION_CODE\",\"COORDINATE_SYSTEM\",\"EVENT_TIMESTAMP_ACCURACY\",\"MARK_CONFIGURATION_TYPE\",\"MARK_CONFIGURATION_MATERIAL\",\"MARK_CONFIGURATION_COLOUR\",\"MARK_CONFIGURATION_FORM\",\"BIRD_AGE\",\"BIRD_SEX\", \"UPLOAD_STATUS\", \"STATUS_DETAILS\")",
+							"pm.environment.get(\"variable_key\");",
+							"});",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"type": "text",
+						"value": "{{api-key}}"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/enums/dataUpload",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"enums",
+						"dataUpload"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "events-simple/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Response contains a non-empty list \",function(){\r",
+							"   var jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.length).to.not.eql(0);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Cache-Control",
+						"type": "text",
+						"value": "max-age=0",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/events-s?limit=5000&nznbbsCode=2A",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"events-s"
+					],
+					"query": [
+						{
+							"key": "order",
+							"value": "ASC",
+							"disabled": true
+						},
+						{
+							"key": "projectId",
+							"value": "00000000-0000-0000-0000-000000000002",
+							"disabled": true
+						},
+						{
+							"key": "userId",
+							"value": "b909287f-08f0-4d3f-8f99-a5e1a013d5bf",
+							"disabled": true
+						},
+						{
+							"key": "locationDescription",
+							"value": "*Auckland*",
+							"disabled": true
+						},
+						{
+							"key": "reporterId",
+							"value": "b909287f-08f0-4d3f-8f99-a5e1a013d5bf",
+							"disabled": true
+						},
+						{
+							"key": "providerId",
+							"value": "b909287f-08f0-4d3f-8f99-a5e1a013d5bf",
+							"disabled": true
+						},
+						{
+							"key": "ownerId",
+							"value": "b909287f-08f0-4d3f-8f99-a5e1a013d5bf",
+							"disabled": true
+						},
+						{
+							"key": "bandingScheme",
+							"value": "NZ_GAMEBIRD",
+							"disabled": true
+						},
+						{
+							"key": "speciesId",
+							"value": "102",
+							"disabled": true
+						},
+						{
+							"key": "speciesGroup",
+							"value": "1",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "eventTimestamp",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "projectName",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "reporterCertNumber",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "locationDescription",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "uploadTimestamp",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "speciesCode",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "speciesCommonName",
+							"disabled": true
+						},
+						{
+							"key": "eventDate",
+							"value": "1980-06-19",
+							"disabled": true
+						},
+						{
+							"key": "eventDateGte",
+							"value": "1980-06-19",
+							"disabled": true
+						},
+						{
+							"key": "eventDateLte",
+							"value": "1980-06-19",
+							"disabled": true
+						},
+						{
+							"key": "paginationToken",
+							"value": "100000",
+							"disabled": true
+						},
+						{
+							"key": "limit",
+							"value": "5000"
+						},
+						{
+							"key": "nznbbsCode",
+							"value": "2A"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "events-advanced/post/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Response contains a non-empty list \",function(){\r",
+							"   var jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.length).to.not.eql(0);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Response contains the correct event_type\",function(){\r",
+							"    var jsonData = pm.response.json();\r",
+							"   jsonData.data.forEach(event => {\r",
+							"   pm.expect(event.event_type).to.eql(\"FIRST_MARKING_IN_HAND\");\r",
+							"});\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Cache-Control",
+						"type": "text",
+						"value": "max-age=0",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"projectId\": [],\r\n  \"speciesId\": [],\r\n  \"friendlyName\": [],\r\n  \"speciesGroup\": [],\r\n  \"bandingScheme\": [],\r\n  \"reporterId\": [],\r\n  \"providerId\": [],\r\n  \"ownerId\": [],\r\n  \"userId\": [],\r\n  \"eventDate\": [],\r\n  \"eventDateLte\": [],\r\n  \"eventDateGte\": [],\r\n  \"nznbbsCode\": [\"1\"],\r\n  \"latitudeLte\": [89],\r\n  \"latitudeGte\": [-89],\r\n  \"longitudeLte\": [179],\r\n  \"longitudeGte\": [-179],\r\n  \"locationDescription\": [],\r\n  \"comments\": [],\r\n  \"bandNumber\": [],\r\n  \"otherAlphanumeric\": [],\r\n  \"markConfiguration\": []\r\n}"
+				},
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/events-a?order=ASC&limit=100",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"events-a"
+					],
+					"query": [
+						{
+							"key": "sortBy",
+							"value": "eventTimestamp",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "projectName",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "reporterCertNumber",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "locationDescription",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "uploadTimestamp",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "speciesCode",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "speciesCommonName",
+							"disabled": true
+						},
+						{
+							"key": "order",
+							"value": "ASC"
+						},
+						{
+							"key": "limit",
+							"value": "100"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "events-advanced/post/valid/cicd-friendly_name",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Response contains a non-empty list \",function(){\r",
+							"   var jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.length).to.not.eql(0);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Response contains the correct event_type\",function(){\r",
+							"    var jsonData = pm.response.json();\r",
+							"   jsonData.data.forEach(event => {\r",
+							"   pm.expect(event.event_type).to.eql(\"FIRST_MARKING_IN_HAND\");\r",
+							"});\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Cache-Control",
+						"type": "text",
+						"value": "max-age=0",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"projectId\": [],\r\n  \"speciesId\": [],\r\n  \"friendlyName\": [\"*Bird*\"],\r\n  \"speciesGroup\": [],\r\n  \"bandingScheme\": [],\r\n  \"reporterId\": [],\r\n  \"providerId\": [],\r\n  \"ownerId\": [],\r\n  \"userId\": [],\r\n  \"eventDate\": [],\r\n  \"eventDateLte\": [],\r\n  \"eventDateGte\": [],\r\n  \"nznbbsCode\": [],\r\n  \"latitudeLte\": [],\r\n  \"latitudeGte\": [],\r\n  \"longitudeLte\": [],\r\n  \"longitudeGte\": [],\r\n  \"locationDescription\": [],\r\n  \"comments\": [],\r\n  \"bandNumber\": [],\r\n  \"otherAlphanumeric\": [],\r\n  \"markConfiguration\": []\r\n}"
+				},
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/events-a?order=ASC&limit=100",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"events-a"
+					],
+					"query": [
+						{
+							"key": "sortBy",
+							"value": "eventTimestamp",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "projectName",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "reporterCertNumber",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "locationDescription",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "uploadTimestamp",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "speciesCode",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "speciesCommonName",
+							"disabled": true
+						},
+						{
+							"key": "order",
+							"value": "ASC"
+						},
+						{
+							"key": "limit",
+							"value": "100"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "events-advanced/post/valid/cicd/single-mark-side",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Response contains a non-empty list \",function(){\r",
+							"   var jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.length).to.not.eql(0);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Cache-Control",
+						"type": "text",
+						"value": "max-age=0",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"bandingScheme\": [],\r\n    \"bandNumber\": [],\r\n    \"comments\": [],\r\n    \"eventDate\": [],\r\n    \"eventDateGte\": [],\r\n    \"eventDateLte\": [],\r\n    \"latitudeGte\": [],\r\n    \"latitudeLte\": [],\r\n    \"locationDescription\": [],\r\n    \"longitudeGte\": [],\r\n    \"longitudeLte\": [],\r\n    \"markConfiguration\": [\r\n        {\r\n            \"mark_type\": null,\r\n            \"text_colour\": null,\r\n            \"colour\": null,\r\n            \"alphanumeric_text\": null,\r\n            \"mark_form\": null,\r\n            \"side\": \"LEFT\",\r\n            \"position\": null,\r\n            \"location_idx\": null,\r\n            \"mark_material\": null,\r\n            \"mark_fixing\": null,\r\n            \"prefix_number\": null,\r\n            \"short_number\": null\r\n        }\r\n    ],\r\n    \"nznbbsCode\": [],\r\n    \"otherAlphanumeric\": [],\r\n    \"ownerId\": [],\r\n    \"projectId\": [],\r\n    \"providerId\": [],\r\n    \"reporterId\": [],\r\n    \"speciesGroup\": [],\r\n    \"speciesId\": [],\r\n    \"friendlyName\": [],\r\n    \"userId\": []\r\n}"
+				},
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/events-a?order=ASC&limit=100",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"events-a"
+					],
+					"query": [
+						{
+							"key": "sortBy",
+							"value": "eventTimestamp",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "projectName",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "reporterCertNumber",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "locationDescription",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "uploadTimestamp",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "speciesCode",
+							"disabled": true
+						},
+						{
+							"key": "sortBy",
+							"value": "speciesCommonName",
+							"disabled": true
+						},
+						{
+							"key": "order",
+							"value": "ASC"
+						},
+						{
+							"key": "limit",
+							"value": "100"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "logs/post/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response body matches the expected response body\",function(){",
+							"    pm.expect(pm.response.json()).to.eql(pm.environment.get(\"expectedResponse\"));",
+							"});",
+							"",
+							"pm.test(\"Response contains:LOGS RECEIVED\", function () {",
+							"    pm.expect(pm.response.text()).to.include(\"LOGS RECEIVED\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const expectedResponse1 =",
+							"{",
+							"    \"log_status\": \"LOGS RECEIVED\"",
+							"};",
+							"",
+							"pm.environment.set(\"expectedResponse\",expectedResponse1);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "x-api-key",
+						"value": "{{api-key}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "[{\n\t\"id\": \"00000000-0000-0000-0000-000000000000\",\n\t\"type\": \"CICD NEWMAN TEST CLIENT\",\n\t\"message\": \"Logging endpoint CICD check\",\n\t\"severity\": \"LOG\"\n}]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/logs",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"logs"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "marks/get/valid//cicd/querystate=allocated",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/marks?markState=ALLOCATED",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"marks"
+					],
+					"query": [
+						{
+							"key": "markState",
+							"value": "ALLOCATED"
+						},
+						{
+							"key": "paginationToken",
+							"value": "500000",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "species/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response contains a non-empty list \",function(){",
+							"   var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.length).to.not.eql(0);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "x-api-key",
+						"value": "{{api-key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/species",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"species"
+					]
+				},
+				"description": "Tests a GET method against the species resource."
+			},
+			"response": []
+		},
+		{
+			"name": "species-groups/get/valid/cicd",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response contains a non-empty list \",function(){",
+							"   var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.length).to.not.eql(0);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "x-api-key",
+						"value": "{{api-key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_endpoint}}/birdbanding/species-groups",
+					"host": [
+						"{{api_endpoint}}"
+					],
+					"path": [
+						"birdbanding",
+						"species-groups"
+					]
+				},
+				"description": "Tests a GET method against the species-groups resource."
+			},
+			"response": []
+		}
+	]
+}

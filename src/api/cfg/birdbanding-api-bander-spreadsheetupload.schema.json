@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A schema describing for validating incoming event-spreadsheet payloads for birdbanding service API calls",
+  "id": "/birdbanding/api/payload/bander-uploads",
+  "title": "Birdbanding - API Payload - Event Spreadsheet",
+  "definitions": {
+    "unspecifiedString": {
+      "type": "string"
+    },
+    "unspecifiedNullableString": {
+      "type": ["string", "null"]
+    },
+    "unspecifiedStringShort": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "unspecifiedNullableStringShort": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedStringLong": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedNullableStringLong": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedInt": {
+      "type": "integer"
+    },
+    "unspecifiedBool": {
+      "type": "boolean"
+    },
+    "unspecifiedBoolString": {
+      "type": "string",
+      "enum": ["true","false"]
+    },
+    "uuidv4String": {
+    "type": "string",
+    "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "intString": {
+      "type": "string",
+      "pattern": "^\\d+$"
+      },
+    "md5String": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+      },
+    "iso8601DatetimeString": {
+      "type": "string",
+      "format": "date-time"
+      }, 
+    "iso8601DatetimeStringNullable": {
+      "type": ["string", "null"],
+      "format": "date-time"
+      }, 
+    "iso8601DateString": {
+      "type": "string",
+      "format": "date"
+      }, 
+    "iso8601TimeString": {
+      "type": "string",
+      "format": "time"
+      },
+    "projectName": {
+      "type": "string",
+      "pattern": "^(?!\\s*$).+"
+    },
+    "nznbbsCertificationNumberStringNullable": {
+      "type": ["string", "null"],
+      "pattern": "^(ORG|H){0,1}[0-9]+$"
+    },
+    "projectState": {
+      "type": "string",
+      "enum": ["AWAITING_APPROVAL", "INACTIVE", "ACTIVE"]
+    },
+    "uploadStatusEnum": {
+      "type": "string",
+      "enum": [
+        "PENDING_RESULT", "CRITICAL_FILE_FORMAT", "PASS_FILE_FORMAT", "WARNINGS",
+        "CRITICALS", "WARNINGS_AND_CRITICALS", "PASS", "REQUEST_FOR_APPROVAL", "ADMIN_REJECTED",
+        "ADMIN_APPROVED",
+        "PUSHED_TO_DATABASE",
+        "PROCESS_ERROR",
+        "DEFUNCT"
+      ]
+    }
+  },
+
+  "type": "object",   
+  "properties": {
+    "id": { "$ref": "#/definitions/uuidv4String" },
+    "upload_status": { "$ref": "#/definitions/uploadStatusEnum" },
+    "file_size_in_bytes": { "$ref": "#/definitions/unspecifiedInt" },
+    "object_path": { "$ref": "#/definitions/unspecifiedStringShort" },
+    "object_version": { "$ref": "#/definitions/unspecifiedStringShort" },
+    "critical_errors": { "$ref": "#/definitions/unspecifiedBool" },
+    "warning_errors": { "$ref": "#/definitions/unspecifiedBool" },
+    "bander_id": { "$ref": "#/definitions/uuidv4String" },
+    "project_id": { "$ref": "#/definitions/uuidv4String" }
+  },
+  "required": ["upload_status", "file_size_in_bytes", "object_path", "bander_id"]
+}

@@ -1,0 +1,306 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A schema describing for validating incoming public event payloads for birdbanding service API calls",
+  "id": "/birdbanding/api/payload/public-event",
+  "title": "Birdbanding - API Payload - Public Event",
+  "definitions": {
+    "unspecifiedString": {
+      "type": "string"
+    },
+    "unspecifiedNullableString": {
+      "type": ["string", "null"]
+    },
+    "unspecifiedNullableStringMinLength1": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "unspecifiedStringShort": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedNullableStringShort": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedStringLong": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedNullableStringLong": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedInt": {
+      "type": "integer"
+    },
+    "nullableUnspecifiedInt": {
+      "type": ["integer", "null"]
+    },
+    "requestedImageUploadInt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "unspecifiedBool": {
+      "type": "boolean"
+    },
+    "uuidv4String": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "uuidv4StringNullable": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "intString": {
+      "type": "string",
+      "pattern": "^\\d+$"
+    },
+    "md5String": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "iso8601DatetimeString": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "iso8601DatetimeStringNullable": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "iso8601DateString": {
+      "type": "string",
+      "format": "date"
+    },
+    "iso8601TimeString": {
+      "type": "string",
+      "format": "time"
+    },
+    "emailString": {
+      "type": "string",
+      "format": "email"
+    },
+    "eventTypeEnum": {
+      "type": "string",
+      "enum": [
+        "0",
+        "1",
+        "2",
+        "2A",
+        "2B",
+        "2C",
+        "2D",
+        "3",
+        "4",
+        "R",
+        "T",
+        "L",
+        "P",
+        "U",
+        "X",
+        "Y"
+      ]
+    },
+    "publicEventTypeEnum": {
+      "type": "string",
+      "enum": [
+        "SIGHTING_BY_PERSON"
+      ]
+    },
+    "outStatusCodeEnum": {
+      "type": "string",
+      "enum": [
+        "DEAD_RECENT",
+        "DEAD_NOT_RECENT",
+        "ALIVE"
+      ]
+    },
+    "nullableOutConditionCodeEnum": {
+      "type": ["string", "null"],
+      "enum": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "99",
+        null
+      ]
+    },
+    "eventStateEnum": {
+      "type": "string",
+      "enum": [
+        "AWAITING_REVIEW",
+        "VALID"
+      ]
+    },
+    "eventTSAccuracyEnum": {
+      "type": "string",
+      "enum": [
+        "D",
+        "M",
+        "Y",
+        "U"
+      ]
+    },
+    "latitude": {
+      "type": "number",
+      "minimum": -90,
+      "maximum": 90
+    },
+    "longitude": {
+      "type": "number",
+      "minimum": -180,
+      "maximum": 180
+    },
+    "nullableLatitude": {
+      "type": ["number", "null"],
+      "minimum": -90,
+      "maximum": 90
+    },
+    "nullableLongitude": {
+      "type": ["number", "null"],
+      "minimum": -180,
+      "maximum": 180
+    },
+    "location_comment": {
+      "type": "string",
+      "enum": [
+        "NORTHLAND", "AUCKLAND", "WAIKATO", "BAY OF PLENTY", "GISBORNE",
+        "HAWKE'S BAY", "TARANAKI", "MANAWATU-WHANGANUI", "WELLINGTON",
+        "WEST COAST", "CANTERBURY", "OTAGO", "SOUTHLAND", "TASMAN",
+        "NELSON", "MARLBOROUGH", "CHATHAMS", "SUBANTARCTIC ISLANDS",
+        "PACIFIC ISLANDS", "AT SEA", "AUSTRALIA", "OTHER"
+      ]
+    },
+    "markSideEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "LEFT", "RIGHT", null
+      ]
+    },
+    "markPositionEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "TIBIA", "TARSUS", null
+      ]
+    },
+    "markTypeEnum": {
+      "type": "string",
+      "enum": [
+        "LEG_BAND", "LEG_TRANSPONDER", "INSERTED_TRANSPONDER",
+        "WEB", "JESS", "GPS", "TDR", "GLS", "FLIPPER", "WING", "TRANSMITTER", "OTHER"
+      ]
+    },
+    "markTypeEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "LEG_BAND", "LEG_TRANSPONDER", "INSERTED_TRANSPONDER",
+        "WEB", "JESS", "GPS", "TDR", "GLS", "FLIPPER", "WING", "TRANSMITTER", "OTHER", null
+      ]
+    },
+    "markFormEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "BUTT", "BUTT_HALF_METAL", "WRAPAROUND_1", "WRAPAROUND_1_5",
+        "WRAPAROUND_1_75", "WRAPAROUND_2", "WRAPAROUND_UNKNOWN",
+        "SPIRAL", "FLAG", "OTHER", null
+      ]
+    },
+    "markMaterialEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "METAL", "ACETATE", "DARVIC", "CELLULOID", "OTHER",
+        "PLASTIC_UNSPECIFIED", "ACRYLIC", null
+      ]
+    },
+    "markFixingEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "GLUE", "THF", "SUPERGLUE", "PIPE_CEMENT", "SELLEYS_PLASTIC_FIX_2_STEP",
+        "SOLDER", "DOUBLE_SIDED_TAPE", "SOLVENT", "OTHER", null
+      ]
+    },
+    "markColourEnumNullable": {
+      "type": ["string", "null"],
+      "enum": [
+        "BLACK", "WHITE", "GREY", "RED", "ORANGE", "PALE_ORANGE", "FLUORESCENT_ORANGE",
+        "YELLOW", "PALE_PINK", "PINK", "FLUORESCENT_PINK", "CRIMSON_PINK", "FLUORESCENT_PURPLE",
+        "LIGHT_PURPLE", "PURPLE", "PALE_BLUE", "FLUORESCENT_BLUE", "LIGHT_BLUE", "BLUE", "DARK_BLUE",
+        "FLUORESCENT_GREEN", "LIME_GREEN", "PALE_GREEN", "GREEN", "DARK_GREEN", "BROWN", "BLUE_STRIPED_PINK",
+        "GREEN_STRIPED_PURPLE", "RED_STRIPED_WHITE", "PINK_STRIPED_WHITE", "BLUE_STRIPED_YELLOW",
+        "OTHER", null
+      ]
+    },
+    "markStateEnum": {
+      "type": "string",
+      "enum": [
+        "NEW", "ALLOCATED", "ATTACHED", "DETACHED", "USED",
+        "RETURNED", "PRACTICE", "LOST", "RETURNED_USED",
+        "OTHER"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "public_event": {
+      "type": "object",
+      "properties": {
+        "event_type": { "$ref": "#/definitions/publicEventTypeEnum" },
+        "out_status_code": { "$ref": "#/definitions/outStatusCodeEnum" },
+        "out_condition_code": { "$ref": "#/definitions/nullableOutConditionCodeEnum" },
+        "species_id": { "$ref": "#/definitions/nullableUnspecifiedInt" },
+        "event_timestamp": { "$ref": "#/definitions/iso8601DatetimeString" },
+        "latitude": { "$ref": "#/definitions/nullableLatitude" },
+        "longitude": { "$ref": "#/definitions/nullableLongitude" },
+        "location_comment": { "$ref": "#/definitions/location_comment" },
+        "location_description": { "$ref": "#/definitions/unspecifiedStringLong" },
+        "other_mark_comments": { "$ref": "#/definitions/unspecifiedNullableStringLong" },
+        "contact_person_name": { "$ref": "#/definitions/unspecifiedStringShort" },
+        "contact_email": { "$ref": "#/definitions/emailString" },
+        "follow_up_requested": { "$ref": "#/definitions/unspecifiedBool" },
+        "count_event_media_requested": { "$ref": "#/definitions/requestedImageUploadInt" },
+        "comments": { "$ref": "#/definitions/unspecifiedNullableStringLong" }
+      },
+      "required": [
+        "event_type", "out_status_code", "out_condition_code", "species_id", "event_timestamp",
+        "latitude", "longitude", "location_comment", "location_description", "other_mark_comments",
+        "contact_person_name", "contact_email", "follow_up_requested", "count_event_media_requested", "comments"
+      ]
+    },
+    "mark_configuration": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "#/definitions/uuidv4StringNullable" },
+          "side": { "$ref": "#/definitions/markSideEnumNullable" },
+          "position": { "$ref": "#/definitions/markPositionEnumNullable" },
+          "location_idx": { "$ref": "#/definitions/nullableUnspecifiedInt" },
+          "mark_type": { "$ref": "#/definitions/markTypeEnum" },
+          "mark_form": { "$ref": "#/definitions/markFormEnumNullable" },
+          "mark_material": { "$ref": "#/definitions/markMaterialEnumNullable" },
+          "mark_fixing": { "$ref": "#/definitions/markFixingEnumNullable" },
+          "colour": { "$ref": "#/definitions/unspecifiedNullableStringShort" },
+          "text_colour": { "$ref": "#/definitions/unspecifiedNullableStringShort" },
+          "alphanumeric_text": { "$ref": "#/definitions/unspecifiedNullableStringMinLength1" }
+        },
+        "required": [
+          "side", "position", "location_idx", "mark_type", 
+          "mark_material", "colour", "alphanumeric_text"
+        ]
+      }
+    }
+  },
+  "required": [
+    "public_event", "mark_configuration"
+  ]
+}

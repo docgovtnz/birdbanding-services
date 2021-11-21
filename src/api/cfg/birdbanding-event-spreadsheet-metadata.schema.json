@@ -1,0 +1,21 @@
+{
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "description": "A schema describing the request body that should accompany a birdbanding spreadsheet PUT invocation",
+   "id": "/birdbanding/event-spreadsheet/put/metadata",
+   "title": "Birdbanding - Spreadsheet metadata",
+   "type": "object",   
+   "properties": {
+      "projectId": {
+        "title": "Project ID",
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "serviceName": {
+        "title": "Service Name",
+        "type": "string",
+        "maxLength": 64,
+        "minLength": 1
+      }
+   },
+   "required": ["projectId", "serviceName"]
+}

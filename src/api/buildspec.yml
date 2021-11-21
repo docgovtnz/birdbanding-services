@@ -1,0 +1,50 @@
+version: 0.2
+
+env:
+  variables:
+    SLS_DEBUG: "*"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+    commands:
+      - ENV_LOWER=`echo "$DEPLOYMENT_ENVIRONMENT" | tr '[:upper:]' '[:lower:]'`      
+      - ROOT_DIR=`pwd`
+      - cd "$SOURCE_DIR"
+      - rm -rf node_modules
+      - npm install --save
+      # Unsafe perm added to ensure npm runs within context of this buildspec script (not by switching into user privileges inside CodeBuild)
+      # Further context here: 
+      # https://docs.npmjs.com/misc/config#unsafe-perm
+      # Alternative could be to use nvm going forward but not implemented at this stage
+      - npm install -g --unsafe-perm serverless@2.15.0
+      - cd .. && cd api_2
+      - rm -rf node_modules
+      - npm install --save
+      - cd .. && cd api_3
+      - rm -rf node_modules
+      - npm install --save
+  build:
+    commands:
+      - echo Deploying serverless components at `date`   
+      - cd "$ROOT_DIR/$SOURCE_DIR"
+      - serverless deploy -s $ENV_LOWER --verbose | tee serverless_deploy.out
+      - cd .. && cd api_2
+      - serverless deploy -s $ENV_LOWER --verbose | tee serverless_deploy.out
+      - cd .. && cd api_3
+      - serverless deploy -s $ENV_LOWER --verbose | tee serverless_deploy.out
+      - cd "$ROOT_DIR/$SOURCE_DIR"
+  post_build:
+    commands:
+      - echo Deploy completed on `date`
+      - echo Get SSM documentation bucket name
+      - echo Get SSM documentation bucket ARN
+      - echo Run node script to populate documentation bucket
+      - node ./doc/documentation.js
+artifacts:
+  base-directory: '$ROOT_DIR/$SOURCE_DIR'
+  files:
+    - "serverless_deploy.out"
+    - ".serverless/*"
+  discard-paths: yes

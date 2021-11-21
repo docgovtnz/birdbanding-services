@@ -1,0 +1,105 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A schema describing for validating incoming project-event update payloads for birdbanding service API calls",
+  "id": "/birdbanding/api/payload/project-event-update",
+  "title": "Birdbanding - API Payload - Project - Event-Update",
+  "definitions": {
+    "unspecifiedString": {
+      "type": "string"
+    },
+    "unspecifiedNullableString": {
+      "type": ["string", "null"]
+    },
+    "unspecifiedStringShort": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedNullableStringShort": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedStringLong": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedNullableStringLong": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedInt": {
+      "type": "integer"
+    },
+    "unspecifiedBool": {
+      "type": "boolean"
+    },
+    "unspecifiedBoolString": {
+      "type": "string",
+      "enum": ["true","false"]
+    },
+    "uuidv4String": {
+    "type": "string",
+    "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "intString": {
+      "type": "string",
+      "pattern": "^\\d+$"
+      },
+    "md5String": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+      },
+    "iso8601DatetimeString": {
+      "type": "string",
+      "format": "date-time"
+      }, 
+    "iso8601DatetimeStringNullable": {
+      "type": ["string", "null"],
+      "format": "date-time"
+      }, 
+    "iso8601DateString": {
+      "type": "string",
+      "format": "date"
+      }, 
+      "iso8601DateStringNullable": {
+        "type": ["string", "null"],
+        "format": "date"
+        },   
+    "iso8601TimeString": {
+      "type": "string",
+      "format": "time"
+      },
+      "nznbbsCertificationNumberStringNullable": {
+      "type": ["string", "null"],
+      "pattern": "^(ORG|H){0,1}[0-9]+$"
+    },
+    "projectState": {
+      "type": "string",
+      "enum": ["AWAITING_APPROVAL", "INACTIVE", "ACTIVE"]
+    },
+    "projectMemberAction": {
+      "type": "string",
+      "enum": ["add", "remove"]
+    },
+    "marks":{
+      "type": "object",
+      "properties": {
+        "prefix_number": { "$ref": "#/definitions/unspecifiedStringShort" },
+        "short_number": { "$ref": "#/definitions/intString" }
+      },
+      "required": ["prefix_number", "short_number"]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/uuidv4String" },
+      "minItems": 1
+    }
+  },
+  "required": ["events"]
+}

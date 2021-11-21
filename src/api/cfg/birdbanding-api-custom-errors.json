@@ -1,0 +1,538 @@
+{
+  "description": "A generic custom errors list used to present errors in a consistent format for the Department of Conservation birdbanding application",
+  "id": "/birdbanding/api/internal/custom-errors",
+  "title": "Birdbanding - Custom Errors",
+  "definitions": {
+    "ForbiddenError": {
+      "code": 403,
+      "type": "SYSTEM",
+      "severity": "CRITICAL",
+      "message": "User: {1} is forbidden from {0}",
+      "keyword": "auth",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "NotFoundError": {
+      "code": 404,
+      "type": "SYSTEM",
+      "severity": "CRITICAL",
+      "message": "{0} {1} not found",
+      "keyword": "notfound",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "SuspendedUserError": {
+      "code": 405,
+      "type": "SYSTEM",
+      "severity": "CRITICAL",
+      "message": "User is suspended {0}",
+      "keyword": "auth",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "ValidationProcessError": {
+      "code": 406,
+      "type": "SYSTEM",
+      "severity": "CRITICAL",
+      "message": "An unexpected error has occurred during the upload validation process - please contact the Banding Office and send this link: {0}",
+      "keyword": "spreadsheet",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "ProjectAuthorisationError": {
+      "code": 401,
+      "type": "AUTH",
+      "severity": "CRITICAL",
+      "message": "Not authorised to upload for this project or the project is awaiting approval",
+      "keyword": "authorisation",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "DeleteAuthorisationError": {
+      "code": 402,
+      "type": "AUTH",
+      "severity": "CRITICAL",
+      "message": "Not authorised to delete this record /view-data/event/{0}. {3}",
+      "keyword": "authorisation",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "ProjectMembershipAuthorisationError": {
+      "code": 403,
+      "type": "AUTH",
+      "severity": "CRITICAL",
+      "message": "Not authorised to change project membership for this project, must be the project manager or admin",
+      "keyword": "authorisation",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "UpdateAuthorisationError": {
+      "code": 404,
+      "type": "AUTH",
+      "severity": "CRITICAL",
+      "message": "Not authorised to update this record, must be a contributor to it",
+      "keyword": "authorisation",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "FileExtensionError": {
+      "code": 405,
+      "type": "UPLOAD",
+      "severity": "CRITICAL",
+      "message": "{0} is an unsupported file extension. Must be {2}",
+      "keyword": "file",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "PropertyRequiredError": {
+      "code": 1001,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{0} is required",
+      "keyword": "required",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "PropertyTypeRequired": {
+      "code": 1002,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "Invalid type for {0}. Should be: {3}",
+      "keyword": "type",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "PropertyEnumError": {
+      "code": 1003,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{0} is not one of the required values: {3}",
+      "keyword": "enum",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "PropertyLimitViolation": {
+      "code": 1004,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{0} is outside of the {3} value {4}",
+      "keyword": "{3}",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "PropertyFormatError": {
+      "code": 1005,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{0} does not match the required format {3}",
+      "keyword": "format",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "MinItemsError": {
+      "code": 1006,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{0} requires at least {3} item(s)",
+      "keyword": "minItems",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "PropertyPatternError": {
+      "code": 1007,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{0} does not match the required pattern {3}",
+      "keyword": "pattern",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "UnexpectedSchemaError": {
+      "code": 1008,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "Unexpected schema validation error on {0}, please contact technical support. {3}",
+      "keyword": "system",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "SpreadsheetPropertyEnumError": {
+      "code": 1009,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{0}: {1} is not one of the required values, please review the dropdown list in spreadsheet version: {3}",
+      "keyword": "enum",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "RelatedPropertyRequired": {
+      "code": 2001,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{0}, {3} is required",
+      "keyword": "relation",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "InvalidEmptyListProperty": {
+      "code": 2002,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{0} requires at least 1 entry",
+      "keyword": "list",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "InvalidListProperty": {
+      "code": 2003,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{0} is not a valid list property {3}",
+      "keyword": "list",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "UserPropertyExistsError": {
+      "code": 2004,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Already a user with {0}: {1}",
+      "keyword": "user",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "CertSpeciesGroupOrBanderIdNotFound": {
+      "code": 2005,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{0}",
+      "keyword": "certification",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "DuplicationError": {
+      "code": 2006,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{1} is a duplicate {0}",
+      "keyword": "location",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "NullListObjectProperties": {
+      "code": 2007,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{0} has an invalid list item object with all null properties",
+      "keyword": "object",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "UnsupportedPrefixNumber": {
+      "code": 3000,
+      "type": "BUSINESS",
+      "severity": "WARNING",
+      "message": "The prefix number: {0}, is not currently supported as Department of Conservation inventory. Please contact support",
+      "keyword": "lookup",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "InvalidShortNumberRange": {
+      "code": 3001,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "The first short number: {0} is greater than the last short number {1}",
+      "keyword": "parameter",
+      "value": "{0},{1}",
+      "property": "{2}"
+    },    
+    "DuplicateShortNumber": {
+      "code": 3002,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{0} of the submitted short numbers are duplicates for the prefix number {1}",
+      "keyword": "lookup",
+      "value": "{2},{3}",
+      "property": "{4}"
+    },    
+    "DuplicateMarks": {
+      "code": 3003,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{0} of the submitted marks are duplicates",
+      "keyword": "parameter",
+      "value": "{1}",
+      "property": "{2}"
+    },   
+    "UnauthorisedTransferProvider": {
+      "code": 3004,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Event provider: {0} is not authorised to transfer all of the bands specified in this request. Must be the current mark allocatee or admin to transfer these marks",
+      "keyword": "lookup",
+      "value": "{0}",
+      "property": "{1}"
+    },   
+    "MarkStateLifecycleError": {
+      "code": 3005,
+      "type": "BUSINESS",
+      "severity": "{4}",
+      "message": "{0}. {1}",
+      "keyword": "lookup",
+      "value": "{2}",
+      "property": "{3}"
+    },   
+    "LimitExceedanceError": {
+      "code": 3006,
+      "type": "SYSTEM",
+      "severity": "CRITICAL",
+      "message": "{0}. {1}",
+      "keyword": "limit",
+      "value": "{2}",
+      "property": "{3}"
+    },   
+    "StatusNotNew": {
+      "code": 3007,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{0} bands do not have the status 'NEW'",
+      "keyword": "lookup",
+      "value": "{2}",
+      "property": "{1}"
+    }, 
+    "NoStockAssociationPossible": {
+      "code": 3008,
+      "type": "BUSINESS",
+      "severity": "WARNING",
+      "message": "No bands in this record are recognised as Department of Conservation stock ({0}). Please review the alphanumeric text for each mark to confirm you have entered prefix_number-short_number where required",
+      "keyword": "lookup",
+      "value": "{2}",
+      "property": "{1}"
+    }, 
+    "BirdAlreadyHasFirstMarkingError": {
+      "code": 4001,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Bird {0} already has a first marking event on {1}",
+      "keyword": "bird",
+      "value": "{2}",
+      "property": "{3}"
+    },
+    "SightingBeforeFirstMarkingError": {
+      "code": 4002,
+      "type": "BUSINESS",
+      "severity": "{4}",
+      "message": "Bird {0} sighted on {1} would be before first marking on {2}",
+      "keyword": "bird",
+      "value": "{2}",
+      "property": "{3}"
+    },
+    "UnexpectedSpeciesBandPrefix": {
+      "code": 4003,
+      "type": "BUSINESS",
+      "severity": "WARNING",
+      "message": "The prefix {0} is not registered for this species ({1}) as a typical prefix [{4}]. Confirm prefix and species are correct",
+      "keyword": "bird",
+      "value": "{2}",
+      "property": "{3}"
+    },
+    "BirdSpeciesConflictError": {
+      "code": 4004,
+      "type": "BUSINESS",
+      "severity": "{4}",
+      "message": "Bird {0} is already recorded as species {1}",
+      "keyword": "bird",
+      "value": "{2}",
+      "property": "{3}"
+    },
+    "BirdMissingFirstMarking": {
+      "code": 4005,
+      "type": "BUSINESS",
+      "severity": "WARNING",
+      "message": "No bird or first marking event related to the marks in this resighting",
+      "keyword": "bird",
+      "value": "{2}",
+      "property": "{3}"
+    },
+    "InvalidStatusCode": {
+      "code": 4006,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Bird cannot be {0} ({4}) before it is {1} ({5})",
+      "keyword": "bird",
+      "value": "{2}",
+      "property": "{3}"
+    },
+    "WarningBirdAssociationChange": {
+      "code": 4007,
+      "type": "BUSINESS",
+      "severity": "WARNING",
+      "message": "The bird association for this record would change from {4}/view-data/bird/{0} to {4}/view-data/bird/{1}. Review your mark_configuration to confirm (or bird-id if one has been provided)",
+      "keyword": "bird",
+      "value": "{2}",
+      "property": "{3}"
+    },
+    "BirdIdDoesNotExist": {
+      "code": 4008,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "The proposed bird-id: {0} does not match an existing bird in the system. If updating a bird-id the value must match an existing bird",
+      "keyword": "bird",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "BirdStatusDeadWarning": {
+      "code": 4009,
+      "type": "BUSINESS",
+      "severity": "WARNING",
+      "message": "You are creating or updating a record for a bird that has previously been reported as dead",
+      "keyword": "bird",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "StockBirdAssociationOnly": {
+      "code": 4010,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Bird associations using stock are possible with this event, please remove any tracked stock if you want to update the bird-id",
+      "keyword": "bird",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "MultipleBirdAssociationsPossible": {
+      "code": 4011,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{2} different bird associations are possible based on these marks [{3}]. Please review the tracked stock in this record",
+      "keyword": "bird",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "MarkConfigurationParsingError": {
+      "code": 4012,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "A banding code could not be interpreted into a mark configuration in {0}. Please review the 'ColourCodes' tab in the latest FALCON spreadsheet",
+      "keyword": "enum",
+      "value": "{1}",
+      "property": "{2}"
+    },
+    "MissingPrimaryMark": {
+      "code": 4013,
+      "type": "BUSINESS",
+      "severity": "WARNING",
+      "message": "The primary mark {0} in {1} is not currently included in the mark configuration {2}. The primary mark can be included in the leg bands by using the '*' symbol or by including the alphanumeric text directly. Non-leg primary marks should be recorded in the {4} columns",
+      "keyword": "mark",
+      "value": "{0}",
+      "property": "{3}"
+    },
+    "InvalidSpeciesCode": {
+      "code": 4014,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "The species code {0} in {2} does not match a species currently supported by FALCON",
+      "keyword": "bird",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "InvalidProjectedCoordinate": {
+      "code": 5001,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Coordinates for {0} are outside of Easting ({1}-{4}) Northing({5}-{6}) range",
+      "keyword": "location",
+      "value": "{2}",
+      "property": "{3}"
+    },
+    "CoordinatesRequired": {
+      "code": 5001,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "At least one set of complete coordinates must be provided (either LAT/LONG, NZTM Northing/Easting or NZMG Northing/Easting)",
+      "keyword": "location",
+      "value": "-",
+      "property": "{0}"
+    },
+    "invalidContentId":{
+      "code": 6000,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "ContentId does not exist",
+      "keyword": "lookup",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "ObjectPathAlreadyExists":{
+      "code": 6002,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Object path already exists{2}",
+      "keyword": "lookup",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "ObjectNotInS3":{
+      "code": 6003,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Object does not exist in S3 or could not be accessed. Please upload prior to referencing",
+      "keyword": "lookup",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "ObjectAlreadyInS3":{
+      "code": 6004,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "Object already exists in S3. Please update/use existing attachment or use a different file name",
+      "keyword": "lookup",
+      "value": "{0}",
+        "property": "{1}"
+    },
+    "FileUploadFormatError":{
+      "code": 6005,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "File-upload format error. File not compatible with required version. File must {0}",
+      "keyword": "file",
+      "value": "",
+      "property": ""
+    },
+    "RowSkippedWarning":{
+      "code": 6006,
+      "type": "BUSINESS",
+      "severity": "WARNING",
+      "message": "{0} has been skipped during this upload. Spreadsheet uploads are limited to {1}. Rows are only included if not blank and not related to inventory only events",
+      "keyword": "file",
+      "value": "",
+      "property": "{2}"
+    },
+    "InvalidBanderNumberFormat": {
+      "code": 7001,
+      "type": "FORMAT",
+      "severity": "CRITICAL",
+      "message": "{2}: {0} is not the required format. Must be a four digit number with an optional preceding H (pre-certification bander) or ORG (pre-certification organisation)",
+      "keyword": "bander",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "BanderNotFound": {
+      "code": 7002,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "{2}: {0} does not match any existing bander certification numbers",
+      "keyword": "bander",
+      "value": "{0}",
+      "property": "{1}"
+    },
+    "InvalidBanderUpdate": {
+      "code": 7003,
+      "type": "BUSINESS",
+      "severity": "CRITICAL",
+      "message": "NEW_MARK (state = 'NEW') and TRANSFER (state = 'ALLOCATED') events must be associated with a bander",
+      "keyword": "bander",
+      "value": null,
+      "property": "/bander_id"
+    }
+  }
+}

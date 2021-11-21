@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A schema describing for validating incoming bander certification payloads for birdbanding service API calls",
+  "id": "/birdbanding/api/payload/bander-certifications",
+  "title": "Birdbanding - API Payload - Bander Certifications",
+  "definitions": {
+    "unspecifiedString": {
+      "type": "string"
+    },
+    "unspecifiedNullableString": {
+      "type": ["string", "null"]
+    },
+    "unspecifiedInt": {
+      "type": "integer"
+    },
+    "unspecifiedBool": {
+      "type": "boolean"
+    },
+    "unspecifiedBoolString": {
+      "type": "string",
+      "enum": ["true","false"]
+    },
+    "uuidv4String": {
+    "type": "string",
+    "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "intString": {
+      "type": "string",
+      "pattern": "^\\d+$"
+      },
+    "intStringNullable": {
+      "type": ["string", "null"],
+      "pattern": "^\\d+$"
+      },
+    "md5String": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+      },
+    "iso8601DatetimeString": {
+      "type": "string",
+      "format": "date-time"
+      }, 
+    "iso8601DatetimeStringNullable": {
+      "type": ["string", "null"],
+      "format": "date-time"
+      }, 
+    "iso8601DateString": {
+      "type": "string",
+      "format": "date"
+      }, 
+    "iso8601TimeString": {
+      "type": "string",
+      "format": "time"
+      },
+    "competencyLevelEnum": {
+      "type": "string",
+      "enum": ["L1","L2","L3"]
+    },
+    "endorsementEnum": {
+      "type": "string",
+      "enum": ["Mist-netting","Mist-netting waterfowl","Cannon-netting", "Net gun", "Pullus", "Transponder insertion"]
+    },
+    
+    "speciesGroupId": {
+        "type": "integer"
+    }
+
+  },
+
+  "type": "object",   
+  "properties": {
+    "bander_id": { "$ref": "#/definitions/uuidv4String" },
+    "valid_from_timestamp": { "$ref": "#/definitions/iso8601DatetimeStringNullable" },
+    "valid_to_timestamp": { "$ref": "#/definitions/iso8601DatetimeStringNullable" },
+    "certification": {
+        "oneOf": [  { "$ref": "#/definitions/speciesGroupId" },
+                    { "$ref": "#/definitions/endorsementEnum" }
+    ]},
+    "certification_comment": {"$ref": "#/definitions/unspecifiedNullableString"},
+    "competency_level" : { "$ref": "#/definitions/competencyLevelEnum"}
+  },
+  "required": ["bander_id", "certification", "competency_level"]
+}

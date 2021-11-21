@@ -1,0 +1,234 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A schema describing for validating incoming path & querystring parameters for birdbanding service API calls",
+  "id": "/birdbanding/api/parameters",
+  "title": "Birdbanding - API Parameters",
+  "definitions": {
+    "unspecifiedString": {
+      "type": "string"
+    },
+    "unspecifiedNullableString": {
+      "type": ["string", "null"]
+    },
+    "unspecifiedString50Char": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 50
+    },
+    "unspecifiedStringShort": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedNullableStringShort": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 200
+    },
+    "unspecifiedStringLong": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "unspecifiedNullableStringLong": {
+      "type": ["string", "null"],
+      "minLength": 0,
+      "maxLength": 2500
+    },
+    "urlDecodedString": {
+      "type": "string",
+      "pattern": "^[\\S|\\s]+$"
+    },
+    "uuidv4String": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "intString": {
+      "type": "string",
+      "pattern": "^-?\\d+$"
+    },
+    "md5String": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "iso8601DatetimeString": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "iso8601DateString": {
+      "type": "string",
+      "format": "date"
+    }, 
+    "iso8601TimeString": {
+      "type": "string",
+      "format": "time"
+    },
+    "nznbbsCodeEnum": {
+      "type": "string",
+      "enum": ["1", "Z", "C", "2A", "2B", "2C", "2D", "3", "X", "0", "L", "T", "R", "P", "U", "Y", "NEW"]
+    },
+    "booleanString": {
+      "type": "string",
+      "enum": ["true", "false"]
+    },
+    "pageNameEnum": {
+      "type": "string",
+      "enum": ["viewData", "viewMarks"]
+    },
+    "certSearchEnum": {
+      "type": "string",
+      "enum": ["ENDORSEMENT", "SPECIES_GROUP_ID"]
+    },
+    "competencyLevel": {
+      "type": "string",
+      "enum": ["L1", "L2", "L3"]
+    },
+    "endorsementEnum": {
+      "type": "string",
+      "enum": ["Mist-netting","Mist-netting waterfowl","Cannon-netting", "Net gun", "Pullus", "Transponder insertion"]
+    },
+    "speciesGroupId": {
+      "type": "string",
+      "pattern": "^\\d+$"
+    },
+    "projectState": {
+      "type": "string",
+      "enum": ["AWAITING_APPROVAL", "INACTIVE", "ACTIVE"]
+    },
+    "responseFormat": {
+      "type": ["string"],
+      "enum": ["summary","range","batch", "file"]
+    },
+    "version": {
+      "type": ["string"],
+      "enum": ["v2"]
+    },
+    "sortOrder": {
+      "type": "string",
+      "enum": [
+        "standard", 
+        "eventTimestamp", 
+        "prefixNumber", 
+        "shortNumber", 
+        "projectName", 
+        "reporterCertNumber", 
+        "speciesCode",
+        "speciesCommonName", 
+        "uploadTimestamp",
+        "locationDescription"
+      ]
+    },
+    "orderDirection": {
+      "type": "string",
+      "enum": ["ASC", "DESC"]
+    },
+    "enumId": {
+      "type": "string",
+      "enum": ["viewData", "managePeople", "viewProjects", "publicSighting", "manageStock", "uploadData"]
+    },
+    "markStateEnum": {
+      "type": "string",
+      "enum": [
+        "NEW",
+        "ALLOCATED",
+        "ATTACHED",
+        "DETACHED",
+        "RETURNED",
+        "PRACTICE",
+        "LOST",
+        "RETURNED_USED",
+        "OTHER"
+      ]
+    },
+    "eventValidationEnum": {
+      "type": "string",
+      "enum": [
+        "event",
+        "markConfiguration",
+        "bird",
+        "bander",
+        "location"
+      ]
+    },
+    "exportModeEnum": {
+      "type": "string",
+      "enum": [
+        "simple",
+        "advanced"
+      ]
+    }
+  },
+  "type": "object",   
+  "properties": {
+    "paginationToken": { "$ref": "#/definitions/intString" },
+    "cognitoPaginationToken": { "$ref": "#/definitions/unspecifiedString" },
+    "limit": { "$ref": "#/definitions/intString" },
+    "format": { "$ref": "#/definitions/responseFormat" },
+    "version": { "$ref": "#/definitions/version" },
+    "sortBy": { "$ref": "#/definitions/sortOrder" },
+    "order": { "$ref": "#/definitions/orderDirection" },
+    "eventId": { "$ref": "#/definitions/uuidv4String" },
+    "birdId": { "$ref": "#/definitions/uuidv4String" },
+    "birdRecord": { "$ref": "#/definitions/booleanString" },
+    "projectId": { "$ref": "#/definitions/uuidv4String" },
+    "banderId": { "$ref": "#/definitions/uuidv4String" },
+    "markId": { "$ref": "#/definitions/uuidv4String" },
+    "teamId": { "$ref": "#/definitions/uuidv4String" },
+    "eventTransferId": { "$ref": "#/definitions/uuidv4String" },
+    "stagedEventBatchId": { "$ref": "#/definitions/uuidv4String" },
+    "characteristicId": { "$ref": "#/definitions/intString" },
+    "speciesId": { "$ref": "#/definitions/intString" },
+    "speciesGroup": { "$ref": "#/definitions/intString" },
+    "friendlyName": { "$ref": "#/definitions/unspecifiedString" },
+    "enumId":{ "$ref": "#/definitions/unspecifiedString" },
+    "projectName": { "$ref": "#/definitions/unspecifiedString" },
+    "projectState": { "$ref": "#/definitions/projectState" },
+    "description": { "$ref": "#/definitions/unspecifiedString" },
+    "moratoriumExpiry": { "$ref": "#/definitions/iso8601DatetimeString" },
+    "moratoriumFlag": { "$ref": "#/definitions/booleanString" },
+    "organisation": { "$ref": "#/definitions/unspecifiedString" },
+    "coordinatorId": { "$ref": "#/definitions/uuidv4String" },
+    "isDocProject": { "$ref": "#/definitions/booleanString" },
+    "location": { "$ref": "#/definitions/unspecifiedString" },
+    "locationDescription": { "$ref": "#/definitions/unspecifiedString" },
+    "permitId": { "$ref": "#/definitions/unspecifiedString" },
+    "permitExpiry": { "$ref": "#/definitions/iso8601DatetimeString" },
+    "prefixNumber": { "$ref": "#/definitions/unspecifiedString" },
+    "shortNumber": { "$ref": "#/definitions/unspecifiedString" },
+    "speciesCode": { "$ref": "#/definitions/intString" },
+    "speciesCommonName": { "$ref": "#/definitions/unspecifiedString" },
+    "bandingScheme": { "$ref": "#/definitions/unspecifiedString" },
+    "regionName": { "$ref": "#/definitions/urlDecodedString" },
+    "reporterId": { "$ref": "#/definitions/uuidv4String" },
+    "providerId": { "$ref": "#/definitions/uuidv4String" },
+    "ownerId": { "$ref": "#/definitions/uuidv4String" },
+    "userId": { "$ref": "#/definitions/uuidv4String" },
+    "eventDate": { "$ref": "#/definitions/iso8601DateString" },
+    "eventDateGte": { "$ref": "#/definitions/iso8601DateString" },
+    "eventDateLte": { "$ref": "#/definitions/iso8601DateString" },
+    "nznbbsCode": { "$ref": "#/definitions/nznbbsCodeEnum" },
+    "validateUsername": { "$ref": "#/definitions/booleanString" },
+    "validateEmail": { "$ref": "#/definitions/booleanString" },
+    "banderDownloadId": { "$ref": "#/definitions/uuidv4String" },
+    "certification": {
+      "oneOf": [  { "$ref": "#/definitions/speciesGroupId" },
+                  { "$ref": "#/definitions/endorsementEnum" }
+    ]},
+    "certType":{ "$ref": "#/definitions/certSearchEnum" },
+    "certificationCommentContains": {"$ref": "#/definitions/unspecifiedString" },
+    "competencyLevel": {"$ref": "#/definitions/competencyLevel" },
+    "beforeDate": { "$ref": "#/definitions/iso8601DatetimeString" },
+    "afterDate": { "$ref": "#/definitions/iso8601DatetimeString" },
+    "markState": { "$ref": "#/definitions/markStateEnum" },
+    "shortNumberTo": { "$ref": "#/definitions/intString" },
+    "shortNumberFrom": { "$ref": "#/definitions/intString" },
+    "validationName": { "$ref": "#/definitions/eventValidationEnum" },
+    "contentId": { "$ref": "#/definitions/intString" },
+    "contentName": { "$ref": "#/definitions/unspecifiedString50Char" },
+    "latitudeLte": { "$ref": "#/definitions/intString" },
+    "latitudeGte": { "$ref": "#/definitions/intString" },
+    "longitudeLte": { "$ref": "#/definitions/intString" },
+    "longitudeGte": { "$ref": "#/definitions/intString" },
+    "exportMode": { "$ref": "#/definitions/exportModeEnum" }
+  }
+}

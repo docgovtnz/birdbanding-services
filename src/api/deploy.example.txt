@@ -1,0 +1,40 @@
+cd ~/birdbanding/doc-birdbanding-source
+
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-params.schema.json -i '1.0' -n parameters
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-event-spreadsheet-metadata.schema.json -i '1.0' -n eventSpreadsheetMetaData
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-bander-payload.schema.json -i '1.0' -n banderPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-bander-certifications-payload.schema.json -i '1.0' -n banderCertificationsPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-event-payload.schema.json -i '1.0' -n eventPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-bird-payload.schema.json -i '1.0' -n birdPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-bander-project-payload.schema.json -i '1.0' -n banderProjectPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-processed-event.schema.json -i '1.0' -n processedEvent
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-updated-event.schema.json -i '1.0' -n eventUpdate
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-event-validation.schema.json -i '1.0' -n eventValidation
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-logging-payload.schema.json -i '1.0' -n loggingPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-bander-eventdownload-payload.schema.json -i '1.0' -n eventDownloadPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-public-event-payload.schema.json -i '1.0' -n publicEventPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-project-payload.schema.json -i '1.0' -n projectPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-project-member-list-payload.schema.json -i '1.0' -n memberListPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-marks-range-payload.schema.json -i '1.0' -n marksRangePayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-marks-batch-payload.schema.json -i '1.0' -n marksBatchPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-event-transfer-payload.schema.json -i '1.0' -n eventTransfer
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-marks-delete-batch-payload.schema.json -i '1.0' -n marksDeleteBatchPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-mark-state-update-batch-payload.schema.json -i '1.0' -n markStateUpdateBatchPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-cms-content-payload.schema.json -i '1.0' -n cmsContentPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-cms-update-content-payload.schema.json -i '1.0' -n cmsUpdateContentPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-cms-attachment-payload.schema.json -i '1.0' -n cmsattachmentPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-bander-spreadsheetupload.schema.json -i '1.0' -n banderSpreadsheetUpload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-advanced-search.schema.json -i '1.0' -n advancedSearchPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-project-event-payload.schema.json -i '1.0' -n projectEventUpdatePayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-preprocessed-bander-upload.schema.json -i '1.0' -n preprocessedBanderUploadPayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-mark-event-update-payload.schema.json -i '1.0' -n markEventUpdatePayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-mark-event-batch-create-payload.schema.json -i '1.0' -n markEventBatchCreatePayload
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-api-bird-update-payload.schema.json -i '1.0' -n birdUpdatePayload
+
+echo Uploading Spreadsheet Mapping configuration...
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-full-9p2.ssmap.json -i '9.2' -n fullSpreadsheetMapping9p2
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-simple-9p2.ssmap.json -i '9.2' -n simpleSpreadsheetMapping9p2
+python ./dpy/upload-schema-definition.py -t example-doc-schema-definitions -s ./src/api/cfg/birdbanding-full-10p0.ssmap.json -i '10.0' -n fullSpreadsheetMapping10p0
+
+echo Uploading Custom Error List...
+python ./dpy/upload-schema-definition.py -t example-birdbanding-service-api-CustomErrorTable-xxxxxx -s ./src/api/cfg/birdbanding-api-custom-errors.json -i '1.0' -n customErrors
